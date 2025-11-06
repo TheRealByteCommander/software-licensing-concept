@@ -1,6 +1,6 @@
-# License Server API Documentation
+# Byte Commander License Server - API Documentation
 
-This document describes the RESTful API endpoints provided by the License Server for license activation, validation, and management.
+This document describes the RESTful API endpoints provided by the Byte Commander License Server for license activation, validation, and management. The system supports flexible licensing models including subscriptions, perpetual licenses, and 2FA-protected activations.
 
 ## Base URL
 
@@ -321,3 +321,74 @@ Common error codes:
 - `FORBIDDEN`: Access denied
 - `NOT_FOUND`: Resource not found
 - `INTERNAL_SERVER_ERROR`: Server error
+
+
+## 2FA (Google Authenticator) Activation
+
+For products that require 2FA, use the following two-step process:
+
+### Step 1: Initiate 2FA Activation
+
+**Endpoint:** `POST /api/trpc/twoFA.initiateActivation`
+
+Initiate a license activation that requires 2FA confirmation.
+
+**Request Body:**
+
+```json
+{
+  "licenseKey": "XXXX-XXXX-XXXX-XXXX",
+  "deviceId": "unique-device-identifier",
+  "deviceInfo": "{\"platform\":\"Linux\",\"version\":\"5.15.0\"}"
+}
+```
+
+**Response (Success):**
+
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "activationToken": "random-token-string",
+      "expiresIn": 600,
+      "message": "Activation initiated. Please provide TOTP code to confirm."
+    }
+  }
+}
+```
+
+### Step 2: Confirm with TOTP Code
+
+**Endpoint:** `POST /api/trpc/twoFA.confirmActivationWith2FA`
+
+Confirm the activation with a TOTP code from Google Authenticator.
+
+**Request Body:**
+
+```json
+{
+  "activationToken": "token-from-step-1",
+  "totpCode": "123456"
+}
+```
+
+**Response (Success):**
+
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "message": "2FA verification successful, license activated"
+    }
+  }
+}
+```
+
+**Important Notes:**
+- The activation token expires in 10 minutes
+- TOTP codes are 6 digits and valid for 30 seconds
+- 2FA is only required during initial activation, not during validation
+- Validation of existing licenses does not require 2FA

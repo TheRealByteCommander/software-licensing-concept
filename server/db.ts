@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, products, licenses, activations, customers, twoFASecrets, activationTokens, InsertProduct, InsertLicense, InsertActivation, InsertCustomer, InsertTwoFASecret, InsertActivationToken } from "../drizzle/schema";
+import { and, desc, isNull, eq } from "drizzle-orm";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -88,9 +88,6 @@ export async function getUserByOpenId(openId: string) {
 
   return result.length > 0 ? result[0] : undefined;
 }
-
-import { products, licenses, activations, customers, InsertProduct, InsertLicense, InsertActivation, InsertCustomer } from "../drizzle/schema";
-import { and, desc, isNull } from "drizzle-orm";
 
 // ========== Products ==========
 export async function createProduct(product: InsertProduct) {
@@ -224,4 +221,58 @@ export async function getCustomerById(id: number) {
   if (!db) return undefined;
   const result = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+// ========== 2FA Secrets ==========
+export async function createTwoFASecret(secret: InsertTwoFASecret) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(twoFASecrets).values(secret);
+}
+
+export async function getTwoFASecretByProductId(productId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(twoFASecrets).where(eq(twoFASecrets.productId, productId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateTwoFASecret(productId: number, data: Partial<InsertTwoFASecret>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(twoFASecrets).set(data).where(eq(twoFASecrets.productId, productId));
+}
+
+// ========== Activation Tokens ==========
+export async function createActivationToken(token: InsertActivationToken) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(activationTokens).values(token);
+}
+
+export async function getActivationTokenByToken(token: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(activationTokens).where(eq(activationTokens.token, token)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function deleteActivationToken(token: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(activationTokens).where(eq(activationTokens.token, token));
+}
+
+export async function deleteExpiredActivationTokens() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Delete tokens that have expired
+  const now = new Date();
+  // This is a simplified implementation - in production, use proper SQL comparison
+  const allTokens = await db.select().from(activationTokens);
+  for (const token of allTokens) {
+    if (token.expiresAt && new Date(token.expiresAt) < now) {
+      await db.delete(activationTokens).where(eq(activationTokens.id, token.id));
+    }
+  }
 }

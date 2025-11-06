@@ -28,8 +28,8 @@ import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Page 1", path: "/" },
-  { icon: Users, label: "Page 2", path: "/some-path" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+  { icon: Users, label: "Customers", path: "/customers" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -71,9 +71,9 @@ export default function DashboardLayout({
               </div>
             </div>
             <div className="text-center space-y-2">
-              <h1 className="text-2xl font-bold tracking-tight">{APP_TITLE}</h1>
+              <h1 className="text-2xl font-bold tracking-tight">Byte Commander</h1>
               <p className="text-sm text-muted-foreground">
-                Please sign in to continue
+                License Server Management
               </p>
             </div>
           </div>
@@ -193,7 +193,7 @@ function DashboardLayoutContent({
                       alt="Logo"
                     />
                     <span className="font-semibold tracking-tight truncate">
-                      {APP_TITLE}
+                      Byte Commander
                     </span>
                   </div>
                   <button

@@ -1,6 +1,6 @@
-# Deployment Guide
+# Byte Commander License Server - Deployment Guide
 
-This guide explains how to deploy the License Server to production.
+This guide explains how to deploy the Byte Commander License Server to production. The system includes 2FA-protected license activations and flexible licensing models.
 
 ## Prerequisites
 
@@ -18,8 +18,8 @@ The following environment variables are automatically configured by the Manus pl
 - `OAUTH_SERVER_URL`: Manus OAuth backend base URL
 - `VITE_OAUTH_PORTAL_URL`: Manus login portal URL
 - `OWNER_OPEN_ID`, `OWNER_NAME`: Owner's info
-- `VITE_APP_TITLE`: Application title
-- `VITE_APP_LOGO`: Logo image URL
+- `VITE_APP_TITLE`: Application title (default: "Byte Commander License Server")
+- `VITE_APP_LOGO`: Logo image URL (Byte Commander logo)
 
 ## Deployment Steps
 

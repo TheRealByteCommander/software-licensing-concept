@@ -1,6 +1,6 @@
-# Software Licensing System
+# Byte Commander License Server
 
-A comprehensive, flexible software licensing system with support for various license models including subscriptions, perpetual licenses, and device-based licensing. Built with modern web technologies and designed for easy integration into existing software products.
+A comprehensive, flexible software licensing system with support for various license models including subscriptions, perpetual licenses, and device-based licensing. Built with modern web technologies and designed for easy integration into existing software products. Developed by **Byte Commander** – App-Entwicklung.
 
 ## Features
 

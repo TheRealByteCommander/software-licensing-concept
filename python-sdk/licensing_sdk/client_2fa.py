@@ -1,6 +1,6 @@
 """
-License Client SDK for Python Applications
-Provides easy integration with the License Server API
+License Client SDK with 2FA Support for Python Applications
+Provides easy integration with the License Server API with Google Authenticator support
 """
 
 import hashlib
@@ -13,12 +13,12 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 
-class LicenseClient:
-    """Client for license activation and validation"""
+class LicenseClientWith2FA:
+    """Client for license activation and validation with 2FA support"""
     
     def __init__(self, server_url: str, product_id: int, license_key: Optional[str] = None):
         """
-        Initialize the license client
+        Initialize the license client with 2FA support
         
         Args:
             server_url: Base URL of the license server (e.g., 'https://license.example.com')
@@ -44,10 +44,8 @@ class LicenseClient:
     
     def _get_device_id(self) -> str:
         """Generate a unique device identifier"""
-        # Combine multiple system identifiers
         system_info = f"{platform.node()}-{platform.machine()}-{platform.system()}"
         
-        # Try to get MAC address
         try:
             import uuid
             mac = uuid.getnode()
@@ -55,7 +53,6 @@ class LicenseClient:
         except:
             pass
         
-        # Create a hash
         return hashlib.sha256(system_info.encode()).hexdigest()
     
     def _save_token(self, token: str) -> None:
@@ -80,20 +77,18 @@ class LicenseClient:
             print(f"Warning: Could not load token: {e}")
         return None
     
-    def activate(self, license_key: Optional[str] = None) -> Dict[str, Any]:
+    def initiate_activation_with_2fa(self, license_key: Optional[str] = None) -> Dict[str, Any]:
         """
-        Activate the license on this device
-        
-        Note: If the product requires 2FA, use LicenseClientWith2FA instead.
+        Initiate license activation for 2FA-enabled products
         
         Args:
             license_key: License key to activate (uses instance key if not provided)
             
         Returns:
-            dict: Activation response with 'success', 'token', and 'message' keys
+            dict: Response with 'success', 'activationToken', and 'expiresIn' keys
             
         Raises:
-            Exception: If activation fails or 2FA is required
+            Exception: If activation initiation fails
         """
         key = license_key or self.license_key
         if not key:
@@ -109,7 +104,7 @@ class LicenseClient:
         
         try:
             response = requests.post(
-                f"{self.server_url}/api/trpc/api.activate",
+                f"{self.server_url}/api/trpc/twoFA.initiateActivation",
                 json={
                     'licenseKey': key,
                     'deviceId': device_id,
@@ -119,23 +114,89 @@ class LicenseClient:
             response.raise_for_status()
             
             result = response.json()
-            if result.get('result', {}).get('data', {}).get('success'):
-                token = result['result']['data']['token']
-                self._token = token
-                self._save_token(token)
-                self.license_key = key
+            data = result.get('result', {}).get('data', {})
+            
+            if data.get('success'):
                 return {
                     'success': True,
-                    'token': token,
-                    'message': result['result']['data'].get('message', 'Activation successful')
+                    'activationToken': data['activationToken'],
+                    'expiresIn': data['expiresIn'],
+                    'message': 'Activation initiated. Please provide TOTP code to confirm.'
                 }
             else:
                 return {
                     'success': False,
-                    'message': 'Activation failed'
+                    'message': 'Activation initiation failed'
                 }
         except requests.RequestException as e:
-            raise Exception(f"Activation request failed: {e}")
+            raise Exception(f"Activation initiation request failed: {e}")
+    
+    def confirm_activation_with_2fa(self, activation_token: str, totp_code: str) -> Dict[str, Any]:
+        """
+        Confirm license activation with TOTP code
+        
+        Args:
+            activation_token: Token from initiate_activation_with_2fa()
+            totp_code: 6-digit TOTP code from Google Authenticator
+            
+        Returns:
+            dict: Confirmation response with 'success', 'token', and 'message' keys
+            
+        Raises:
+            Exception: If confirmation fails
+        """
+        try:
+            response = requests.post(
+                f"{self.server_url}/api/trpc/twoFA.confirmActivationWith2FA",
+                json={
+                    'activationToken': activation_token,
+                    'totpCode': totp_code,
+                }
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            data = result.get('result', {}).get('data', {})
+            
+            if data.get('success'):
+                token = data['token']
+                self._token = token
+                self._save_token(token)
+                self.license_key = self.license_key or ""
+                return {
+                    'success': True,
+                    'token': token,
+                    'message': data.get('message', '2FA confirmation successful')
+                }
+            else:
+                return {
+                    'success': False,
+                    'message': data.get('message', '2FA confirmation failed')
+                }
+        except requests.RequestException as e:
+            raise Exception(f"2FA confirmation request failed: {e}")
+    
+    def activate_with_2fa(self, license_key: Optional[str], totp_code: str) -> Dict[str, Any]:
+        """
+        Complete 2FA activation flow in one call
+        
+        Args:
+            license_key: License key to activate
+            totp_code: 6-digit TOTP code from Google Authenticator
+            
+        Returns:
+            dict: Activation response with 'success', 'token', and 'message' keys
+        """
+        # Step 1: Initiate activation
+        initiate_result = self.initiate_activation_with_2fa(license_key)
+        if not initiate_result['success']:
+            return initiate_result
+        
+        activation_token = initiate_result['activationToken']
+        
+        # Step 2: Confirm with TOTP code
+        confirm_result = self.confirm_activation_with_2fa(activation_token, totp_code)
+        return confirm_result
     
     def validate(self, online: bool = True) -> Dict[str, Any]:
         """
@@ -147,7 +208,6 @@ class LicenseClient:
         Returns:
             dict: Validation response with 'valid' key and optional 'license' details
         """
-        # Load token if not in memory
         if not self._token:
             self._token = self._load_token()
         
@@ -177,7 +237,6 @@ class LicenseClient:
                 'message': 'Invalid response from server'
             })
         except requests.RequestException as e:
-            # If online validation fails, try offline
             print(f"Online validation failed, trying offline: {e}")
             return self._validate_offline()
     
@@ -186,11 +245,8 @@ class LicenseClient:
         try:
             import jwt
             
-            # Decode without verification (we can't verify signature offline)
-            # In production, you should verify the signature with the public key
             decoded = jwt.decode(self._token, options={"verify_signature": False})
             
-            # Check expiration
             exp = decoded.get('exp')
             if exp and datetime.fromtimestamp(exp) < datetime.now():
                 return {
@@ -211,41 +267,6 @@ class LicenseClient:
                 'valid': False,
                 'message': f'Offline validation failed: {e}'
             }
-    
-    def deactivate(self) -> Dict[str, Any]:
-        """
-        Deactivate the license on this device
-        
-        Returns:
-            dict: Deactivation response
-        """
-        if not self.license_key:
-            raise ValueError("License key is required for deactivation")
-        
-        device_id = self._get_device_id()
-        
-        try:
-            response = requests.post(
-                f"{self.server_url}/api/trpc/api.deactivate",
-                json={
-                    'licenseKey': self.license_key,
-                    'deviceId': device_id,
-                }
-            )
-            response.raise_for_status()
-            
-            # Clear local token
-            self._token = None
-            if self._token_file.exists():
-                self._token_file.unlink()
-            
-            result = response.json()
-            return result.get('result', {}).get('data', {
-                'success': False,
-                'message': 'Deactivation failed'
-            })
-        except requests.RequestException as e:
-            raise Exception(f"Deactivation request failed: {e}")
     
     def is_valid(self, online: bool = True) -> bool:
         """

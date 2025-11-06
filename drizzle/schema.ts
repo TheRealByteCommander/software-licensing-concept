@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -32,6 +32,7 @@ export const products = mysqlTable("products", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
+  require2FA: boolean("require2FA").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -71,6 +72,37 @@ export const activations = mysqlTable("activations", {
   lastValidatedAt: timestamp("lastValidatedAt").defaultNow().notNull(),
   deactivatedAt: timestamp("deactivatedAt"),
 });
+
+/**
+ * 2FA Secrets table - Stores TOTP secrets for 2FA-enabled products
+ */
+export const twoFASecrets = mysqlTable("twoFASecrets", {
+  id: int("id").autoincrement().primaryKey(),
+  productId: int("productId").notNull(),
+  secret: varchar("secret", { length: 255 }).notNull(), // Base32 encoded secret
+  backupCodes: text("backupCodes"), // JSON array of backup codes
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TwoFASecret = typeof twoFASecrets.$inferSelect;
+export type InsertTwoFASecret = typeof twoFASecrets.$inferInsert;
+
+/**
+ * Activation Tokens table - Stores pending activation tokens waiting for 2FA confirmation
+ */
+export const activationTokens = mysqlTable("activationTokens", {
+  id: int("id").autoincrement().primaryKey(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  licenseKey: varchar("licenseKey", { length: 128 }).notNull(),
+  deviceId: varchar("deviceId", { length: 255 }).notNull(),
+  deviceInfo: text("deviceInfo"),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ActivationToken = typeof activationTokens.$inferSelect;
+export type InsertActivationToken = typeof activationTokens.$inferInsert;
 
 export type Activation = typeof activations.$inferSelect;
 export type InsertActivation = typeof activations.$inferInsert;

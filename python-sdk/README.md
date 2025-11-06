@@ -1,6 +1,6 @@
-# Licensing SDK for Python
+# Byte Commander License SDK - Python Client
 
-A simple and secure Python client library for integrating software license management into your applications.
+A simple and secure Python client library for integrating the Byte Commander License Server into your applications. Supports flexible licensing models, 2FA-protected activations, and offline validation.
 
 ## Features
 
@@ -160,3 +160,55 @@ except Exception as e:
 ## License
 
 MIT License
+
+
+## 2FA-Protected Activation
+
+For products that require 2FA (Google Authenticator), use the `LicenseClientWith2FA` class:
+
+```python
+from licensing_sdk import LicenseClientWith2FA
+
+# Initialize the 2FA client
+client = LicenseClientWith2FA(
+    server_url="https://your-license-server.com",
+    product_id=1,
+    license_key="XXXX-XXXX-XXXX-XXXX"
+)
+
+# Step 1: Initiate activation
+activation_result = client.initiate_activation()
+if activation_result['success']:
+    activation_token = activation_result['activationToken']
+    print(f"Activation initiated. Token: {activation_token}")
+else:
+    print(f"Failed to initiate: {activation_result['message']}")
+    exit(1)
+
+# Step 2: Get TOTP code from user (via Google Authenticator)
+totp_code = input("Enter the 6-digit code from Google Authenticator: ")
+
+# Step 3: Confirm activation with TOTP
+confirm_result = client.confirm_activation_with_2fa(
+    activation_token=activation_token,
+    totp_code=totp_code
+)
+
+if confirm_result['success']:
+    print("License activated successfully with 2FA!")
+else:
+    print(f"2FA confirmation failed: {confirm_result['message']}")
+    exit(1)
+
+# Now validate as normal
+if client.is_valid():
+    print("License is valid!")
+else:
+    print("Invalid license")
+```
+
+**Important Notes:**
+- 2FA is only required during the initial activation on a new device
+- Subsequent program starts only require license validation (no 2FA)
+- The activation token expires in 10 minutes
+- TOTP codes are valid for 30 seconds

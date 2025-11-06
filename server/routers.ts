@@ -6,6 +6,7 @@ import { z } from "zod";
 import * as db from "./db";
 import { generateLicenseKey, generateLicenseToken, verifyLicenseToken } from "./licenseUtils";
 import { TRPCError } from "@trpc/server";
+import { twoFARouter } from "./twoFARouter";
 
 export const appRouter = router({
   system: systemRouter,
@@ -138,6 +139,12 @@ export const appRouter = router({
           throw new TRPCError({ code: "NOT_FOUND", message: "License not found" });
         }
 
+        // Get product to check if 2FA is required
+        const product = await db.getProductById(license.productId);
+        if (!product) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Product not found" });
+        }
+
         // Check license status
         if (license.status !== "active") {
           throw new TRPCError({ code: "FORBIDDEN", message: `License is ${license.status}` });
@@ -169,6 +176,14 @@ export const appRouter = router({
           });
 
           return { success: true, token, message: "Already activated" };
+        }
+
+        // NEW ACTIVATION - Check if 2FA is required
+        if (product.require2FA) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "2FA required for this product. Use twoFA.initiateActivation endpoint.",
+          });
         }
 
         // Check activation limit
@@ -304,6 +319,7 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+  twoFA: twoFARouter,
 });
 
 export type AppRouter = typeof appRouter;
