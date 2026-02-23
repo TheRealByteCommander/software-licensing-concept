@@ -1,5 +1,6 @@
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
+import crypto from "crypto";
 
 /**
  * Generate a new 2FA secret for a product
@@ -51,11 +52,21 @@ export function verifyTOTP(secret: string, token: string, window: number = 2): b
  * Generate backup codes for 2FA
  */
 export function generateBackupCodes(count: number = 10): string[] {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const codeLength = 8;
   const codes: string[] = [];
-  for (let i = 0; i < count; i++) {
-    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
-    codes.push(code);
+
+  while (codes.length < count) {
+    const bytes = crypto.randomBytes(codeLength);
+    let code = "";
+    for (let i = 0; i < codeLength; i++) {
+      code += alphabet[bytes[i] % alphabet.length];
+    }
+    if (!codes.includes(code)) {
+      codes.push(code);
+    }
   }
+
   return codes;
 }
 

@@ -240,14 +240,16 @@ export const appRouter = router({
             return { valid: false, message: "License has expired" };
           }
 
-          // Update validation timestamp
+          // Enforce active device binding: token is only valid for an active activation.
           const activation = await db.getActivationByDeviceAndLicense(
             decoded.licenseKey,
             decoded.deviceId
           );
-          if (activation) {
-            await db.updateActivationValidation(activation.id);
+          if (!activation) {
+            return { valid: false, message: "Activation not found for this device" };
           }
+
+          await db.updateActivationValidation(activation.id);
 
           return {
             valid: true,

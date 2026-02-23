@@ -126,6 +126,38 @@ export const twoFARouter = router({
         });
       }
 
+      // Check license status
+      if (license.status !== "active") {
+        throw new TRPCError({ code: "FORBIDDEN", message: `License is ${license.status}` });
+      }
+
+      // Check expiration
+      if (license.expiresAt && new Date(license.expiresAt) < new Date()) {
+        await db.updateLicense(input.licenseKey, { status: "expired" });
+        throw new TRPCError({ code: "FORBIDDEN", message: "License has expired" });
+      }
+
+      // Check if already activated on this device
+      const existingActivation = await db.getActivationByDeviceAndLicense(
+        input.licenseKey,
+        input.deviceId
+      );
+      if (existingActivation) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "License is already activated on this device",
+        });
+      }
+
+      // Check activation limit
+      const activeActivations = await db.getActivationsByLicense(input.licenseKey);
+      if (license.maxActivations && activeActivations.length >= license.maxActivations) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `Maximum activations (${license.maxActivations}) reached`,
+        });
+      }
+
       // Create activation token
       const activationToken = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes

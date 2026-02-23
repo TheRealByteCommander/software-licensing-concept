@@ -9,16 +9,19 @@ export function generateLicenseKey(): string {
   const segments = 4;
   const segmentLength = 4;
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  
+
+  const bytes = crypto.randomBytes(segments * segmentLength);
   const parts: string[] = [];
+
   for (let i = 0; i < segments; i++) {
     let segment = "";
     for (let j = 0; j < segmentLength; j++) {
-      segment += chars.charAt(Math.floor(Math.random() * chars.length));
+      const byte = bytes[i * segmentLength + j];
+      segment += chars[byte % chars.length];
     }
     parts.push(segment);
   }
-  
+
   return parts.join("-");
 }
 
