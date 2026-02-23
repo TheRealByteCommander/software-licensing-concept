@@ -133,9 +133,13 @@ See [Python SDK README](python-sdk/README.md) for detailed documentation.
 
 ## Documentation
 
+- [Versioned API Spec (OpenAPI v1)](api/openapi.v1.yaml) - Contract-first integration spec
 - [API Documentation](API_DOCUMENTATION.md) - Complete API reference
+- [Integration Guide](INTEGRATION_GUIDE.md) - Minimal integration steps for Python/Node/.NET
 - [Deployment Guide](DEPLOYMENT.md) - Production deployment instructions
 - [Python SDK Guide](python-sdk/README.md) - Python client library documentation
+- [TypeScript Client](sdk/typescript/README.md) - Lightweight typed client
+- [.NET Client](sdk/dotnet/README.md) - HttpClient-based client
 
 ## Project Structure
 

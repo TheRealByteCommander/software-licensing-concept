@@ -2,6 +2,15 @@
 
 This document describes the RESTful API endpoints provided by the Byte Commander License Server for license activation, validation, and management. The system supports flexible licensing models including subscriptions, perpetual licenses, and 2FA-protected activations.
 
+## Versioned Contract
+
+For production integrations, use the versioned API contract:
+
+- **OpenAPI v1:** [`api/openapi.v1.yaml`](api/openapi.v1.yaml)
+- **Integration quickstart (Python/Node/.NET):** [`INTEGRATION_GUIDE.md`](INTEGRATION_GUIDE.md)
+
+The OpenAPI file defines request/response payloads and a consistent error envelope (`error.code`, `error.message`, optional `error.data`) for the public activation + 2FA endpoints.
+
 ## Base URL
 
 All API endpoints are accessed via the base URL of your deployed License Server:
