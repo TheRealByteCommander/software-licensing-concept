@@ -8,6 +8,36 @@ import App from "./App";
 import { getLoginUrl } from "./const";
 import "./index.css";
 
+const configureBrandingAndAnalytics = () => {
+  if (typeof document === "undefined") return;
+
+  const appTitle = import.meta.env.VITE_APP_TITLE as string | undefined;
+  const appLogo = import.meta.env.VITE_APP_LOGO as string | undefined;
+  const analyticsEndpoint = import.meta.env.VITE_ANALYTICS_ENDPOINT as string | undefined;
+  const analyticsWebsiteId = import.meta.env.VITE_ANALYTICS_WEBSITE_ID as string | undefined;
+
+  if (appTitle?.trim()) {
+    document.title = appTitle;
+  }
+
+  if (appLogo?.trim()) {
+    for (const rel of ["icon", "apple-touch-icon"]) {
+      const element = document.querySelector(`link[rel='${rel}']`) as HTMLLinkElement | null;
+      if (element) element.href = appLogo;
+    }
+  }
+
+  if (analyticsEndpoint?.trim() && analyticsWebsiteId?.trim()) {
+    const script = document.createElement("script");
+    script.defer = true;
+    script.src = `${analyticsEndpoint.replace(/\/$/, "")}/umami`;
+    script.setAttribute("data-website-id", analyticsWebsiteId);
+    document.body.appendChild(script);
+  }
+};
+
+configureBrandingAndAnalytics();
+
 const queryClient = new QueryClient();
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
