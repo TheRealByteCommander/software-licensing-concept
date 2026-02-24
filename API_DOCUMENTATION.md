@@ -217,9 +217,12 @@ Returns all licenses.
   "productId": 1,
   "type": "subscription",
   "maxActivations": 3,
-  "expiresAt": "2025-12-31"
+  "expiresAt": "2025-12-31",
+  "metadata": "{\"features\":[\"pro\"],\"staleActivationDays\":14}"
 }
 ```
+
+`metadata.staleActivationDays` (optional) enables automatic stale-seat reclaim. During activation, devices that have not validated within the configured number of days are automatically deactivated before seat-limit enforcement.
 
 **Response:**
 
