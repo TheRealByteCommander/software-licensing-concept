@@ -7,6 +7,7 @@ import * as db from "./db";
 import { generateLicenseKey, generateLicenseToken, verifyLicenseToken } from "./licenseUtils";
 import { TRPCError } from "@trpc/server";
 import { twoFARouter } from "./twoFARouter";
+import { isActivationStale, parseLicenseMetadata } from "./licensePolicy";
 
 export const appRouter = router({
   system: systemRouter,
@@ -156,6 +157,8 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "License has expired" });
         }
 
+        const metadata = parseLicenseMetadata(license.metadata);
+
         // Check if already activated on this device
         const existingActivation = await db.getActivationByDeviceAndLicense(
           input.licenseKey,
@@ -165,14 +168,14 @@ export const appRouter = router({
         if (existingActivation) {
           // Update validation timestamp
           await db.updateActivationValidation(existingActivation.id);
-          
+
           // Generate token
           const token = generateLicenseToken({
             licenseKey: input.licenseKey,
             productId: license.productId,
             deviceId: input.deviceId,
             expiresAt: license.expiresAt,
-            features: license.metadata ? JSON.parse(license.metadata).features : [],
+            features: metadata.features ?? [],
           });
 
           return { success: true, token, message: "Already activated" };
@@ -186,8 +189,20 @@ export const appRouter = router({
           });
         }
 
-        // Check activation limit
-        const activeActivations = await db.getActivationsByLicense(input.licenseKey);
+        // Check activation limit (with optional stale-seat reclaim)
+        let activeActivations = await db.getActivationsByLicense(input.licenseKey);
+
+        if (metadata.staleActivationDays && metadata.staleActivationDays > 0) {
+          const staleIds = activeActivations
+            .filter(a => isActivationStale(a.lastValidatedAt, metadata.staleActivationDays!))
+            .map(a => a.id);
+
+          if (staleIds.length > 0) {
+            await db.deactivateActivations(staleIds);
+            activeActivations = activeActivations.filter(a => !staleIds.includes(a.id));
+          }
+        }
+
         if (license.maxActivations && activeActivations.length >= license.maxActivations) {
           throw new TRPCError({
             code: "FORBIDDEN",
@@ -208,7 +223,7 @@ export const appRouter = router({
           productId: license.productId,
           deviceId: input.deviceId,
           expiresAt: license.expiresAt,
-          features: license.metadata ? JSON.parse(license.metadata).features : [],
+          features: metadata.features ?? [],
         });
 
         return { success: true, token, message: "Activation successful" };
@@ -251,13 +266,15 @@ export const appRouter = router({
 
           await db.updateActivationValidation(activation.id);
 
+          const metadata = parseLicenseMetadata(license.metadata);
+
           return {
             valid: true,
             license: {
               productId: license.productId,
               type: license.type,
               expiresAt: license.expiresAt,
-              features: license.metadata ? JSON.parse(license.metadata).features : [],
+              features: metadata.features ?? [],
             },
           };
         } catch (error) {

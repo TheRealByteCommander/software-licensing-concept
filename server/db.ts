@@ -202,6 +202,17 @@ export async function deactivateActivation(id: number) {
   await db.update(activations).set({ deactivatedAt: new Date() }).where(eq(activations.id, id));
 }
 
+export async function deactivateActivations(ids: number[]) {
+  if (!ids.length) return;
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const now = new Date();
+  for (const id of ids) {
+    await db.update(activations).set({ deactivatedAt: now }).where(eq(activations.id, id));
+  }
+}
+
 // ========== Customers ==========
 export async function createCustomer(customer: InsertCustomer) {
   const db = await getDb();
