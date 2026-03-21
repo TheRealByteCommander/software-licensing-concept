@@ -257,6 +257,22 @@ class SDKServer {
   }
 
   async authenticateRequest(req: Request): Promise<User> {
+    // Local auth fallback for self-hosted setups without OAuth configured
+    const oauthConfigured = Boolean(ENV.oAuthServerUrl && ENV.appId);
+    if (ENV.localAuthEnabled || !oauthConfigured) {
+      const openId = ENV.localAuthOpenId || "local-admin";
+      await db.upsertUser({
+        openId,
+        name: ENV.localAuthName || "Local Admin",
+        email: ENV.localAuthEmail || "admin@localhost",
+        loginMethod: "local",
+        role: "admin",
+        lastSignedIn: new Date(),
+      });
+      const localUser = await db.getUserByOpenId(openId);
+      if (localUser) return localUser;
+    }
+
     // Regular authentication flow
     const cookies = this.parseCookies(req.headers.cookie);
     const sessionCookie = cookies.get(COOKIE_NAME);
