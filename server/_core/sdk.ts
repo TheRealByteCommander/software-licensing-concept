@@ -261,16 +261,33 @@ class SDKServer {
     const oauthConfigured = Boolean(ENV.oAuthServerUrl && ENV.appId);
     if (ENV.localAuthEnabled || !oauthConfigured) {
       const openId = ENV.localAuthOpenId || "local-admin";
-      await db.upsertUser({
+      try {
+        await db.upsertUser({
+          openId,
+          name: ENV.localAuthName || "Local Admin",
+          email: ENV.localAuthEmail || "admin@localhost",
+          loginMethod: "local",
+          role: "admin",
+          lastSignedIn: new Date(),
+        });
+        const localUser = await db.getUserByOpenId(openId);
+        if (localUser) return localUser;
+      } catch (error) {
+        console.warn("[Auth] Local auth DB sync failed, using in-memory local user", error);
+      }
+
+      // Hard fallback without DB dependency
+      return {
+        id: 0,
         openId,
         name: ENV.localAuthName || "Local Admin",
         email: ENV.localAuthEmail || "admin@localhost",
         loginMethod: "local",
         role: "admin",
+        createdAt: new Date(),
+        updatedAt: new Date(),
         lastSignedIn: new Date(),
-      });
-      const localUser = await db.getUserByOpenId(openId);
-      if (localUser) return localUser;
+      } as User;
     }
 
     // Regular authentication flow
