@@ -333,8 +333,13 @@ export const appRouter = router({
         name: z.string().optional(),
         company: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
-        await db.createCustomer(input);
+      .mutation(async ({ input, ctx }) => {
+        await db.createCustomer({
+          userId: ctx.user?.id && ctx.user.id > 0 ? ctx.user.id : null,
+          email: input.email,
+          name: input.name,
+          company: input.company,
+        });
         return { success: true };
       }),
   }),
