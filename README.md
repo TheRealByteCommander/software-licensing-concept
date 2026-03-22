@@ -44,8 +44,8 @@ A comprehensive, flexible software licensing system with support for various lic
          │ SQL
          │
 ┌────────▼────────┐
-│    Database     │  (MySQL/TiDB)
-│  (PostgreSQL)   │
+│    Database     │
+│   (MySQL/TiDB)  │
 └─────────────────┘
 
 ┌─────────────────┐
@@ -63,8 +63,8 @@ A comprehensive, flexible software licensing system with support for various lic
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/license-server.git
-cd license-server
+git clone https://github.com/TheRealByteCommander/software-licensing-concept.git
+cd software-licensing-concept
 ```
 
 ### 2. Install Dependencies
@@ -73,13 +73,33 @@ cd license-server
 pnpm install
 ```
 
-### 3. Set Up Database
+### 3. Configure Environment
+
+Create `.env` in the project root:
+
+```env
+DATABASE_URL=mysql://licuser:password@127.0.0.1:3306/licensing
+JWT_SECRET=change-me
+
+# Optional OAuth (if omitted, local auth fallback is used)
+VITE_APP_ID=
+VITE_OAUTH_PORTAL_URL=
+OAUTH_SERVER_URL=
+
+# Optional explicit local auth mode
+LOCAL_AUTH_ENABLED=true
+LOCAL_AUTH_OPEN_ID=local-admin
+LOCAL_AUTH_NAME=Local Admin
+LOCAL_AUTH_EMAIL=admin@localhost
+```
+
+### 4. Set Up Database
 
 ```bash
 pnpm db:push
 ```
 
-### 4. Start Development Server
+### 5. Start Development Server
 
 ```bash
 pnpm dev
@@ -87,10 +107,10 @@ pnpm dev
 
 The application will be available at `http://localhost:3000`
 
-### 5. Access Admin Portal
+### 6. Access Admin Portal
 
 1. Navigate to `http://localhost:3000`
-2. Log in with Manus OAuth
+2. Sign in (OAuth if configured, otherwise local admin fallback)
 3. Create your first product
 4. Generate licenses
 
@@ -233,13 +253,14 @@ pnpm db:studio
 
 ## Deployment
 
-The easiest deployment method is using the Manus platform:
+For self-hosted deployment, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
-1. Save a checkpoint
-2. Click "Publish" in the UI
-3. Your app is live with automatic SSL and CDN
-
-For manual deployment, see [DEPLOYMENT.md](DEPLOYMENT.md).
+Typical production flow:
+1. Set `.env` (DB + secrets)
+2. Run `pnpm db:push`
+3. Build with `pnpm build`
+4. Start with `pnpm start` (or systemd/PM2)
+5. Verify `http://<host>:3000` and API health/routes
 
 ## Security Features
 
@@ -247,7 +268,6 @@ For manual deployment, see [DEPLOYMENT.md](DEPLOYMENT.md).
 - **Device Fingerprinting**: Unique device identification
 - **Activation Limits**: Enforce device restrictions
 - **License Revocation**: Instantly disable compromised keys
-- **Rate Limiting**: Prevent brute-force attacks
 - **Offline Validation**: 7-day grace period for offline use
 
 ## Contributing
