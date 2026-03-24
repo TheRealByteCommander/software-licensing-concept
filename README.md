@@ -1,299 +1,1173 @@
 # Byte Commander License Server
 
-A comprehensive, flexible software licensing system with support for various license models including subscriptions, perpetual licenses, and device-based licensing. Built with modern web technologies and designed for easy integration into existing software products. Developed by **Byte Commander** – App-Entwicklung.
+Ein professionelles, flexibles und sicheres Software-Lizenzsystem mit 2FA-Authentifizierung, Admin-Portal und Python SDK für die Integration in bestehende Anwendungen.
 
-## Features
+**Offizielle Website:** [app.byte-commander.de](https://app.byte-commander.de)
 
-### License Server (Backend)
-- **RESTful API** for license management via tRPC
-- **Multiple License Types**: Subscription, perpetual, node-locked, user-based, feature-based
-- **Real-time Validation**: Online and offline license validation
-- **Secure Token System**: JWT-based signed tokens
-- **Activation Tracking**: Monitor device activations and usage
-- **Database-backed**: MySQL/TiDB for reliable data storage
+---
 
-### Admin Portal (Web UI)
-- **Dashboard**: Overview of licenses, products, and activations
-- **Product Management**: Create and manage software products
-- **License Management**: Generate, view, and revoke licenses
-- **Customer Management**: Track customer information
-- **Activation Logs**: Monitor all license activations
+## 📋 Inhaltsverzeichnis
 
-### Python Client SDK
-- **Easy Integration**: Simple API for Python applications
-- **Offline Support**: Validate licenses without internet (up to 7 days)
-- **Automatic Device ID**: Generates unique device identifiers
-- **Secure Token Storage**: Encrypted local token storage
-- **Cross-platform**: Works on Windows, macOS, and Linux
+- [Überblick](#überblick)
+- [Features](#features)
+- [Systemarchitektur](#systemarchitektur)
+- [Installation](#installation)
+- [Schnellstart](#schnellstart)
+- [Lizenzmodelle](#lizenzmodelle)
+- [2FA-Authentifizierung](#2fa-authentifizierung)
+- [API-Dokumentation](#api-dokumentation)
+- [Python SDK](#python-sdk)
+- [Admin-Portal](#admin-portal)
+- [Deployment](#deployment)
+- [Konfiguration](#konfiguration)
+- [Entwicklung](#entwicklung)
+- [Sicherheit](#sicherheit)
+- [Troubleshooting](#troubleshooting)
+- [Lizenz](#lizenz)
 
-## Architecture
+---
+
+## 🎯 Überblick
+
+Das **Byte Commander License Server** ist ein umfassendes Lizenzverwaltungssystem, das Softwareentwicklern ermöglicht, ihre Produkte mit flexiblen Lizenzmodellen zu schützen. Das System unterstützt mehrere Lizenztypen (Abonnements, perpetuelle Lizenzen, gerätebasiert), 2FA-geschützte Aktivierungen und bietet eine benutzerfreundliche Admin-Oberfläche sowie SDKs für verschiedene Plattformen.
+
+### Hauptmerkmale:
+- **Flexible Lizenzmodelle:** Abonnements, perpetuelle Lizenzen, gerätebasierte und benutzerbasierte Lizenzen
+- **2FA-Sicherheit:** Google Authenticator Integration für sichere Lizenzaktivierungen
+- **Multi-Platform:** Unterstützung für Web, Python, Node.js und andere Plattformen
+- **Admin-Portal:** Vollständige Verwaltungsoberfläche für Produkte, Lizenzen und Kunden
+- **Offline-Validierung:** Lizenzen können offline validiert werden (bis zu 7 Tage)
+- **REST API:** Umfassende tRPC/REST API für Integration in bestehende Systeme
+- **Skalierbar:** Gebaut auf modernen Technologien (Express, React, Drizzle ORM)
+
+---
+
+## ✨ Features
+
+### Lizenzmanagement
+- ✅ **Mehrere Lizenztypen:** Abonnement, Perpetual, Device-based, User-based, Feature-based
+- ✅ **Automatische Generierung:** Eindeutige Lizenzschlüssel mit Checksummen-Validierung
+- ✅ **Ablauf-Management:** Automatische Verwaltung von Lizenzablauf und Erneuerung
+- ✅ **Aktivierungsverfolgung:** Detaillierte Logs aller Aktivierungen und Validierungen
+- ✅ **Lizenz-Widerruf:** Möglichkeit, Lizenzen zu sperren oder zu widerrufen
+
+### Sicherheit
+- ✅ **2FA mit Google Authenticator:** TOTP-basierte Authentifizierung bei Lizenzaktivierung
+- ✅ **JWT-Token:** Sichere, signierte Tokens für Offline-Validierung
+- ✅ **Rate Limiting:** Schutz vor Brute-Force-Angriffen
+- ✅ **Token Blacklisting:** Verwaltung ungültiger Tokens
+- ✅ **HTTPS/TLS:** Verschlüsselte Kommunikation
+- ✅ **Sichere Speicherung:** Gehashed Passwörter, sichere Datenbank-Konfiguration
+
+### Admin-Portal
+- ✅ **Dashboard:** Übersichtsstatistiken und Echtzeit-Metriken
+- ✅ **Produktverwaltung:** Erstellen, bearbeiten und löschen von Produkten
+- ✅ **Lizenzverwaltung:** Vollständige CRUD-Operationen für Lizenzen
+- ✅ **Kundenverwaltung:** Verwaltung von Kundeninformationen
+- ✅ **Aktivierungsverlauf:** Detaillierte Logs aller Aktivierungen
+- ✅ **2FA-Konfiguration:** Aktivieren/Deaktivieren von 2FA pro Produkt
+
+### Integration
+- ✅ **Python SDK:** Vollständige Python-Bibliothek mit 2FA-Unterstützung
+- ✅ **REST API:** Standardisierte API-Endpoints
+- ✅ **tRPC:** Type-safe RPC für Web-Anwendungen
+- ✅ **Webhook-Support:** (Geplant) Ereignisbenachrichtigungen
+
+---
+
+## 🏗️ Systemarchitektur
 
 ```
-┌─────────────────┐
-│  Admin Portal   │  (React + Tailwind)
-│   (Web UI)      │
-└────────┬────────┘
-         │
-         │ tRPC API
-         │
-┌────────▼────────┐
-│ License Server  │  (Node.js + Express + tRPC)
-│   (Backend)     │
-└────────┬────────┘
-         │
-         │ SQL
-         │
-┌────────▼────────┐
-│    Database     │
-│   (MySQL/TiDB)  │
-└─────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    Client Applications                       │
+│  (Python, Node.js, Web, Desktop, Mobile)                    │
+└────────────────┬────────────────────────────────────────────┘
+                 │
+                 │ REST/tRPC API
+                 ▼
+┌─────────────────────────────────────────────────────────────┐
+│              License Server (Backend)                        │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Express.js + tRPC                                  │   │
+│  │  - License Activation                               │   │
+│  │  - License Validation                               │   │
+│  │  - 2FA Management                                   │   │
+│  │  - Product Management                               │   │
+│  └─────────────────────────────────────────────────────┘   │
+└────────────────┬────────────────────────────────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Database Layer                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  MySQL/TiDB + Drizzle ORM                           │   │
+│  │  - Users, Products, Licenses                        │   │
+│  │  - Activations, 2FA Settings                        │   │
+│  │  - Audit Logs                                       │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
 
-┌─────────────────┐
-│ Client Apps     │  (Python SDK)
-│ (Python, etc.)  │
-└────────┬────────┘
-         │
-         │ HTTPS API
-         │
-         └──────────► License Server
+┌─────────────────────────────────────────────────────────────┐
+│              Admin Portal (Frontend)                         │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  React 19 + Tailwind CSS                            │   │
+│  │  - Dashboard                                        │   │
+│  │  - Product Management                               │   │
+│  │  - License Management                               │   │
+│  │  - Customer Management                              │   │
+│  │  - Activation Logs                                  │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Quick Start
+---
 
-### 1. Clone the Repository
+## 📦 Installation
+
+### Voraussetzungen
+
+- **Node.js:** 18.0.0 oder höher
+- **pnpm:** 8.0.0 oder höher (oder npm/yarn)
+- **MySQL/TiDB:** 5.7 oder höher
+- **Git:** 2.30.0 oder höher
+
+### Repository klonen
 
 ```bash
 git clone https://github.com/TheRealByteCommander/software-licensing-concept.git
 cd software-licensing-concept
 ```
 
-### 2. Install Dependencies
+### Abhängigkeiten installieren
 
 ```bash
 pnpm install
 ```
 
-### 3. Configure Environment
+### Umgebungsvariablen konfigurieren
 
-Create `.env` in the project root:
+Erstellen Sie eine `.env.local` Datei im Root-Verzeichnis:
 
 ```env
-DATABASE_URL=mysql://licuser:password@127.0.0.1:3306/licensing
-JWT_SECRET=change-me
+# Datenbank
+DATABASE_URL=mysql://user:password@localhost:3306/license_db
 
-# Optional OAuth (if omitted, local auth fallback is used)
-VITE_APP_ID=
-VITE_OAUTH_PORTAL_URL=
-OAUTH_SERVER_URL=
+# OAuth (Manus)
+VITE_APP_ID=your-app-id
+OAUTH_SERVER_URL=https://api.manus.im
+VITE_OAUTH_PORTAL_URL=https://auth.manus.im
 
-# Optional explicit local auth mode
-LOCAL_AUTH_ENABLED=true
-LOCAL_AUTH_OPEN_ID=local-admin
-LOCAL_AUTH_NAME=Local Admin
-LOCAL_AUTH_EMAIL=admin@localhost
+# Sicherheit
+JWT_SECRET=your-secret-key-min-32-chars
+
+# Anwendung
+VITE_APP_TITLE=Byte Commander License Server
+VITE_APP_LOGO=https://your-domain.com/logo.png
+
+# Owner
+OWNER_NAME=Your Name
+OWNER_OPEN_ID=your-open-id
 ```
 
-### 4. Set Up Database
+### Datenbank initialisieren
 
 ```bash
 pnpm db:push
 ```
 
-### 5. Start Development Server
+Dies erstellt alle notwendigen Tabellen und Migrationen.
+
+### Entwicklungsserver starten
 
 ```bash
 pnpm dev
 ```
 
-The application will be available at `http://localhost:3000`
+Der Server läuft dann unter `http://localhost:3000`
 
-### 6. Access Admin Portal
+---
 
-1. Navigate to `http://localhost:3000`
-2. Sign in (OAuth if configured, otherwise local admin fallback)
-3. Create your first product
-4. Generate licenses
+## 🚀 Schnellstart
 
-## Python SDK Usage
+### 1. Produkt erstellen
 
-### Installation
+Melden Sie sich im Admin-Portal an und navigieren Sie zu **Produkte**:
 
-```bash
-cd python-sdk
-pip install -e .
+```
+Dashboard → Produkte → Neues Produkt
+- Name: "Meine Software"
+- Beschreibung: "Eine großartige Software"
+- 2FA erforderlich: ✓ (optional)
 ```
 
-### Example
+### 2. Lizenz generieren
+
+Navigieren Sie zu **Lizenzen** und erstellen Sie eine neue Lizenz:
+
+```
+Dashboard → Lizenzen → Neue Lizenz
+- Produkt: "Meine Software"
+- Lizenztyp: "Abonnement"
+- Kunde: Wählen Sie einen Kunden
+- Ablaufdatum: 2025-12-31
+```
+
+### 3. Lizenz aktivieren (Client-Seite)
+
+Mit dem Python SDK:
 
 ```python
 from licensing_sdk import LicenseClient
 
-# Initialize client
 client = LicenseClient(
     server_url="https://your-license-server.com",
     product_id=1,
     license_key="XXXX-XXXX-XXXX-XXXX"
 )
 
-# Activate license
+# Aktivieren
 result = client.activate()
 if result['success']:
-    print("License activated!")
+    print("Lizenz aktiviert!")
 
-# Validate license
+# Validieren
 if client.is_valid():
-    print("License is valid - running application")
-    # Your application logic here
+    print("Lizenz ist gültig!")
+```
+
+---
+
+## 📜 Lizenzmodelle
+
+Das System unterstützt mehrere flexible Lizenzmodelle:
+
+### 1. **Abonnement (Subscription)**
+- **Beschreibung:** Zeitbasierte Lizenz mit automatischer Erneuerung
+- **Ablauf:** Endet nach festgelegtem Zeitraum (z.B. 1 Jahr)
+- **Erneuerung:** Automatisch oder manuell
+- **Ideal für:** SaaS-Produkte, Cloud-Services
+
+```json
+{
+  "type": "subscription",
+  "expiryDate": "2025-12-31",
+  "renewalDate": "2025-12-31",
+  "autoRenew": true
+}
+```
+
+### 2. **Perpetual (Unbefristet)**
+- **Beschreibung:** Lebenslange Lizenz ohne Ablaufdatum
+- **Ablauf:** Nie (kann manuell widerrufen werden)
+- **Ideal für:** Desktop-Software, One-Time-Purchase
+
+```json
+{
+  "type": "perpetual",
+  "expiryDate": null
+}
+```
+
+### 3. **Device-Based (Gerätebasiert)**
+- **Beschreibung:** Lizenz ist an ein bestimmtes Gerät gebunden
+- **Aktivierungen:** Nur auf registriertem Gerät gültig
+- **Ideal für:** Hardware-gebundene Software, Workstations
+
+```json
+{
+  "type": "device_based",
+  "deviceId": "device-uuid-12345",
+  "maxDevices": 1
+}
+```
+
+### 4. **User-Based (Benutzerbasiert)**
+- **Beschreibung:** Lizenz ist an einen Benutzer gebunden
+- **Aktivierungen:** Mehrere Geräte pro Benutzer möglich
+- **Ideal für:** Enterprise-Software, Team-Lizenzen
+
+```json
+{
+  "type": "user_based",
+  "userId": "user-id-12345",
+  "maxUsers": 5
+}
+```
+
+### 5. **Feature-Based (Funktionsbasiert)**
+- **Beschreibung:** Lizenz aktiviert bestimmte Features
+- **Features:** Granulare Kontrolle über Funktionalität
+- **Ideal für:** Freemium-Modelle, Tiered Pricing
+
+```json
+{
+  "type": "feature_based",
+  "features": ["basic", "advanced", "premium"],
+  "expiryDate": "2025-12-31"
+}
+```
+
+---
+
+## 🔐 2FA-Authentifizierung
+
+Das System implementiert eine sichere 2FA-Authentifizierung mit Google Authenticator (TOTP).
+
+### Wie 2FA funktioniert
+
+**Wichtig:** 2FA ist **nur bei der Lizenzaktivierung auf neuen Geräten** erforderlich, nicht beim Programmstart.
+
+#### Aktivierungsfluss mit 2FA:
+
+```
+1. Benutzer startet Programm mit neuer Lizenz
+   ↓
+2. Client initiiert Aktivierung
+   ↓
+3. Server prüft: Ist 2FA für dieses Produkt erforderlich?
+   ↓
+   JA → Weiterleitung zu 2FA-Endpunkt
+   NEIN → Normale Aktivierung
+   ↓
+4. Server generiert QR-Code für Google Authenticator
+   ↓
+5. Benutzer scannt QR-Code mit Google Authenticator
+   ↓
+6. Benutzer gibt 6-stelligen Code ein
+   ↓
+7. Server validiert TOTP-Code
+   ↓
+8. Lizenz wird aktiviert und Token wird generiert
+   ↓
+9. Programmstart in Zukunft: Nur Token-Validierung (kein 2FA)
+```
+
+### 2FA Setup für Produkte
+
+Im Admin-Portal:
+
+```
+Dashboard → Produkte → [Produkt bearbeiten]
+2FA erforderlich: ✓ (Checkbox)
+```
+
+### 2FA mit Python SDK
+
+```python
+from licensing_sdk import LicenseClientWith2FA
+
+client = LicenseClientWith2FA(
+    server_url="https://your-license-server.com",
+    product_id=1,
+    license_key="XXXX-XXXX-XXXX-XXXX"
+)
+
+# Schritt 1: Aktivierung initiieren
+activation_result = client.initiate_activation()
+if activation_result['success']:
+    activation_token = activation_result['activationToken']
+    print(f"Bitte scannen Sie den QR-Code in Google Authenticator")
+    
+    # Schritt 2: TOTP-Code vom Benutzer erhalten
+    totp_code = input("Geben Sie den 6-stelligen Code ein: ")
+    
+    # Schritt 3: Aktivierung mit 2FA bestätigen
+    confirm_result = client.confirm_activation_with_2fa(
+        activation_token=activation_token,
+        totp_code=totp_code
+    )
+    
+    if confirm_result['success']:
+        print("✓ Lizenz erfolgreich mit 2FA aktiviert!")
+    else:
+        print(f"✗ 2FA-Bestätigung fehlgeschlagen: {confirm_result['message']}")
+```
+
+### 2FA-Sicherheitsmerkmale
+
+- ✅ **TOTP (Time-based One-Time Password):** Zeitbasierte Codes, gültig für 30 Sekunden
+- ✅ **Aktivierungstoken:** 10-Minuten-Ablauf für zusätzliche Sicherheit
+- ✅ **Brute-Force-Schutz:** Rate Limiting bei fehlgeschlagenen Versuchen
+- ✅ **Backup-Codes:** (Geplant) Wiederherstellungscodes für den Fall, dass Authenticator verloren geht
+
+---
+
+## 📡 API-Dokumentation
+
+### Base URL
+
+```
+https://your-license-server.com/api/trpc/
+```
+
+### Authentifizierung
+
+- **Admin-Endpoints:** Manus OAuth erforderlich
+- **Public-Endpoints:** Keine Authentifizierung erforderlich
+
+### Lizenzaktivierung
+
+#### Normale Aktivierung (ohne 2FA)
+
+**Endpoint:** `POST /api/trpc/api.activate`
+
+**Request:**
+```json
+{
+  "licenseKey": "XXXX-XXXX-XXXX-XXXX",
+  "deviceId": "unique-device-identifier",
+  "deviceInfo": "{\"platform\":\"Linux\",\"version\":\"5.15.0\"}"
+}
+```
+
+**Response (Erfolg):**
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "message": "Activation successful"
+    }
+  }
+}
+```
+
+**Response (Fehler):**
+```json
+{
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Invalid license key"
+  }
+}
+```
+
+### 2FA Aktivierung - Schritt 1: Initiieren
+
+**Endpoint:** `POST /api/trpc/twoFA.initiateActivation`
+
+**Request:**
+```json
+{
+  "licenseKey": "XXXX-XXXX-XXXX-XXXX",
+  "deviceId": "unique-device-identifier",
+  "deviceInfo": "{\"platform\":\"Linux\",\"version\":\"5.15.0\"}"
+}
+```
+
+**Response:**
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "activationToken": "random-token-string",
+      "expiresIn": 600,
+      "qrCode": "data:image/png;base64,...",
+      "message": "Activation initiated. Please provide TOTP code to confirm."
+    }
+  }
+}
+```
+
+### 2FA Aktivierung - Schritt 2: Bestätigen
+
+**Endpoint:** `POST /api/trpc/twoFA.confirmActivationWith2FA`
+
+**Request:**
+```json
+{
+  "activationToken": "token-from-step-1",
+  "totpCode": "123456"
+}
+```
+
+**Response (Erfolg):**
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "message": "2FA verification successful, license activated"
+    }
+  }
+}
+```
+
+### Lizenzvalidierung
+
+**Endpoint:** `POST /api/trpc/api.validate`
+
+**Request:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "deviceId": "unique-device-identifier"
+}
+```
+
+**Response:**
+```json
+{
+  "result": {
+    "data": {
+      "valid": true,
+      "licenseKey": "XXXX-XXXX-XXXX-XXXX",
+      "productId": 1,
+      "expiryDate": "2025-12-31",
+      "features": ["basic", "advanced"],
+      "message": "License is valid"
+    }
+  }
+}
+```
+
+### Lizenzdeaktivierung
+
+**Endpoint:** `POST /api/trpc/api.deactivate`
+
+**Request:**
+```json
+{
+  "licenseKey": "XXXX-XXXX-XXXX-XXXX",
+  "deviceId": "unique-device-identifier"
+}
+```
+
+**Response:**
+```json
+{
+  "result": {
+    "data": {
+      "success": true,
+      "message": "License deactivated successfully"
+    }
+  }
+}
+```
+
+### Produktmanagement (Admin)
+
+**Endpoint:** `POST /api/trpc/products.create` (Authentifizierung erforderlich)
+
+**Request:**
+```json
+{
+  "name": "Meine Software",
+  "description": "Eine großartige Software",
+  "require2FA": true
+}
+```
+
+Weitere Admin-Endpoints finden Sie in der `API_DOCUMENTATION.md`
+
+---
+
+## 🐍 Python SDK
+
+Das Python SDK bietet eine einfache und sichere Integration des Lizenzsystems in Python-Anwendungen.
+
+### Installation
+
+```bash
+pip install licensing-sdk
+```
+
+Oder aus dem Quellcode:
+
+```bash
+cd python-sdk
+pip install -e .
+```
+
+### Grundlegende Verwendung
+
+```python
+from licensing_sdk import LicenseClient
+
+# Client initialisieren
+client = LicenseClient(
+    server_url="https://your-license-server.com",
+    product_id=1,
+    license_key="XXXX-XXXX-XXXX-XXXX"
+)
+
+# Lizenz aktivieren
+result = client.activate()
+if result['success']:
+    print("✓ Lizenz aktiviert!")
+    print(f"Token: {result['token']}")
 else:
-    print("Invalid license")
+    print(f"✗ Aktivierung fehlgeschlagen: {result['message']}")
+
+# Lizenz validieren (online)
+if client.is_valid():
+    print("✓ Lizenz ist gültig!")
+    # Ihre Anwendungslogik hier
+else:
+    print("✗ Lizenz ist ungültig")
     exit(1)
+
+# Offline-Validierung (bis zu 7 Tage)
+if client.is_valid(online=False):
+    print("✓ Lizenz ist offline gültig!")
 ```
 
-See [Python SDK README](python-sdk/README.md) for detailed documentation.
+### 2FA-Aktivierung
 
-## Documentation
+```python
+from licensing_sdk import LicenseClientWith2FA
 
-- [Versioned API Spec (OpenAPI v1)](api/openapi.v1.yaml) - Contract-first integration spec
-- [API Documentation](API_DOCUMENTATION.md) - Complete API reference
-- [Integration Guide](INTEGRATION_GUIDE.md) - Minimal integration steps for Python/Node/.NET
-- [Deployment Guide](DEPLOYMENT.md) - Production deployment instructions
-- [Python SDK Guide](python-sdk/README.md) - Python client library documentation
-- [TypeScript Client](sdk/typescript/README.md) - Lightweight typed client
-- [.NET Client](sdk/dotnet/README.md) - HttpClient-based client
+client = LicenseClientWith2FA(
+    server_url="https://your-license-server.com",
+    product_id=1,
+    license_key="XXXX-XXXX-XXXX-XXXX"
+)
 
-## Project Structure
+# Aktivierung initiieren
+activation_result = client.initiate_activation()
+if activation_result['success']:
+    activation_token = activation_result['activationToken']
+    print(f"Aktivierungstoken: {activation_token}")
+    print("Bitte scannen Sie den QR-Code in Google Authenticator")
+    
+    # TOTP-Code vom Benutzer erhalten
+    totp_code = input("Geben Sie den 6-stelligen Code ein: ")
+    
+    # Aktivierung mit 2FA bestätigen
+    confirm_result = client.confirm_activation_with_2fa(
+        activation_token=activation_token,
+        totp_code=totp_code
+    )
+    
+    if confirm_result['success']:
+        print("✓ Lizenz erfolgreich mit 2FA aktiviert!")
+    else:
+        print(f"✗ 2FA-Bestätigung fehlgeschlagen: {confirm_result['message']}")
+```
+
+### Erweiterte Optionen
+
+```python
+# Benutzerdefinierte Geräte-ID
+client = LicenseClient(
+    server_url="https://your-license-server.com",
+    product_id=1,
+    license_key="XXXX-XXXX-XXXX-XXXX",
+    device_id="custom-device-id"  # Standard: Auto-generiert
+)
+
+# Offline-Token-Speicherung
+client.save_token_offline()  # Speichert Token lokal
+is_valid = client.is_valid(online=False)  # Verwendet gespeicherten Token
+
+# Token-Informationen abrufen
+token_info = client.get_token_info()
+print(f"Ablaufdatum: {token_info['expiryDate']}")
+print(f"Features: {token_info['features']}")
+```
+
+### Fehlerbehandlung
+
+```python
+from licensing_sdk import LicenseClient, LicenseError
+
+try:
+    client = LicenseClient(
+        server_url="https://your-license-server.com",
+        product_id=1,
+        license_key="XXXX-XXXX-XXXX-XXXX"
+    )
+    
+    result = client.activate()
+    if not result['success']:
+        print(f"Fehler: {result['message']}")
+        
+except LicenseError as e:
+    print(f"Lizenzfehler: {e}")
+except ConnectionError as e:
+    print(f"Verbindungsfehler: {e}")
+except Exception as e:
+    print(f"Unerwarteter Fehler: {e}")
+```
+
+---
+
+## 🎨 Admin-Portal
+
+Das Admin-Portal bietet eine vollständige Verwaltungsoberfläche für das Lizenzsystem.
+
+### Zugriff
 
 ```
-license-server/
-├── client/                 # React frontend (Admin Portal)
+https://your-license-server.com
+```
+
+Melden Sie sich mit Ihrem Manus OAuth-Konto an.
+
+### Dashboard
+
+Das Dashboard zeigt Echtzeit-Statistiken:
+- **Produkte:** Gesamtzahl der verwalteten Produkte
+- **Lizenzen:** Aktive und inaktive Lizenzen
+- **Kunden:** Registrierte Kunden
+- **Aktivierungen:** Aktive Geräte
+- **Aktivitätsverlauf:** Letzte Aktivierungen und Validierungen
+
+### Produktverwaltung
+
+**Neue Produkte erstellen:**
+1. Navigieren Sie zu **Produkte**
+2. Klicken Sie auf **Neues Produkt**
+3. Geben Sie ein:
+   - **Name:** Produktname
+   - **Beschreibung:** Kurze Beschreibung
+   - **2FA erforderlich:** Aktivieren Sie für 2FA-Schutz
+4. Klicken Sie auf **Erstellen**
+
+**Produkte bearbeiten:**
+1. Wählen Sie das Produkt aus der Liste
+2. Klicken Sie auf **Bearbeiten**
+3. Passen Sie die Einstellungen an
+4. Klicken Sie auf **Speichern**
+
+### Lizenzverwaltung
+
+**Neue Lizenzen erstellen:**
+1. Navigieren Sie zu **Lizenzen**
+2. Klicken Sie auf **Neue Lizenz**
+3. Wählen Sie:
+   - **Produkt:** Das Produkt für diese Lizenz
+   - **Lizenztyp:** Abonnement, Perpetual, Device-based, etc.
+   - **Kunde:** Der Lizenzinhaber
+   - **Ablaufdatum:** Wann die Lizenz abläuft
+4. Klicken Sie auf **Erstellen**
+
+**Lizenzen verwalten:**
+- **Anzeigen:** Alle Lizenzen mit Status und Details
+- **Bearbeiten:** Ablaufdatum, Kunde, Status ändern
+- **Widerrufen:** Lizenz deaktivieren
+- **Exportieren:** Lizenzliste als CSV exportieren
+
+### Kundenverwaltung
+
+**Kunden anzeigen:**
+1. Navigieren Sie zu **Kunden**
+2. Sehen Sie alle registrierten Kunden mit:
+   - Kontaktinformationen
+   - Lizenzen
+   - Aktivierungsverlauf
+
+**Kundendetails:**
+- Klicken Sie auf einen Kunden, um Details zu sehen
+- Bearbeiten Sie Kontaktinformationen
+- Sehen Sie alle zugeordneten Lizenzen
+
+### Aktivierungsverlauf
+
+**Aktivierungen überwachen:**
+1. Navigieren Sie zu **Aktivierungen**
+2. Sehen Sie alle Lizenzaktivierungen mit:
+   - Zeitstempel
+   - Geräteinformationen
+   - Benutzer
+   - Status
+
+**Aktivierungen filtern:**
+- Nach Produkt
+- Nach Datum
+- Nach Status
+- Nach Benutzer
+
+---
+
+## 🚀 Deployment
+
+### Deployment auf Manus Platform
+
+Das System ist bereits für die Manus Platform konfiguriert.
+
+**Schritte:**
+1. Erstellen Sie einen Checkpoint in der Manus UI
+2. Klicken Sie auf **Publish**
+3. Wählen Sie Ihre Domain
+4. Das System wird automatisch deployed
+
+### Deployment auf eigenen Servern
+
+#### Voraussetzungen
+- Node.js 18+
+- MySQL 5.7+
+- Nginx/Apache (optional, für Reverse Proxy)
+- SSL-Zertifikat
+
+#### Schritt 1: Repository klonen
+
+```bash
+git clone https://github.com/TheRealByteCommander/software-licensing-concept.git
+cd software-licensing-concept
+```
+
+#### Schritt 2: Abhängigkeiten installieren
+
+```bash
+pnpm install
+pnpm build
+```
+
+#### Schritt 3: Umgebungsvariablen setzen
+
+```bash
+cp .env.example .env
+# Bearbeiten Sie .env mit Ihren Einstellungen
+```
+
+#### Schritt 4: Datenbank initialisieren
+
+```bash
+pnpm db:push
+```
+
+#### Schritt 4: Produktions-Server starten
+
+```bash
+pnpm start
+```
+
+Der Server läuft dann auf Port 3000 (konfigurierbar via `PORT` Umgebungsvariable).
+
+#### Schritt 5: Reverse Proxy konfigurieren (Nginx)
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+#### Schritt 6: SSL mit Let's Encrypt
+
+```bash
+sudo certbot certonly --standalone -d your-domain.com
+```
+
+Aktualisieren Sie Ihre Nginx-Konfiguration für HTTPS.
+
+#### Schritt 7: Systemd Service erstellen
+
+```bash
+sudo nano /etc/systemd/system/license-server.service
+```
+
+```ini
+[Unit]
+Description=Byte Commander License Server
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/home/www-data/license-server
+ExecStart=/usr/bin/node /home/www-data/license-server/dist/server.js
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable license-server
+sudo systemctl start license-server
+```
+
+---
+
+## ⚙️ Konfiguration
+
+### Umgebungsvariablen
+
+| Variable | Beschreibung | Beispiel |
+|----------|-------------|---------|
+| `DATABASE_URL` | MySQL-Verbindungsstring | `mysql://user:pass@localhost:3306/db` |
+| `JWT_SECRET` | Secret für JWT-Signing | `your-secret-key-min-32-chars` |
+| `VITE_APP_ID` | Manus OAuth App-ID | `app-id-12345` |
+| `OAUTH_SERVER_URL` | OAuth-Server URL | `https://api.manus.im` |
+| `VITE_OAUTH_PORTAL_URL` | OAuth-Portal URL | `https://auth.manus.im` |
+| `VITE_APP_TITLE` | Anwendungstitel | `Byte Commander License Server` |
+| `VITE_APP_LOGO` | Logo-URL | `https://domain.com/logo.png` |
+| `OWNER_NAME` | Besitzername | `Your Name` |
+| `OWNER_OPEN_ID` | Besitzer OAuth ID | `owner-id-12345` |
+| `PORT` | Server-Port | `3000` |
+| `NODE_ENV` | Umgebung | `production` oder `development` |
+
+### Datenbankschema
+
+Das System verwendet folgende Tabellen:
+
+- **users:** Benutzer und Admin-Konten
+- **products:** Verwaltete Produkte
+- **licenses:** Lizenzinformationen
+- **activations:** Aktivierungsverlauf
+- **customers:** Kundeninformationen
+- **twoFASettings:** 2FA-Konfiguration pro Produkt
+- **activationTokens:** Temporäre 2FA-Tokens
+
+---
+
+## 👨‍💻 Entwicklung
+
+### Projektstruktur
+
+```
+software-licensing-concept/
+├── client/                 # Frontend (React)
 │   ├── src/
-│   │   ├── pages/         # Page components
-│   │   ├── components/    # Reusable UI components
-│   │   └── lib/           # tRPC client
-├── server/                # Node.js backend
-│   ├── routers.ts         # tRPC API routes
-│   ├── db.ts              # Database queries
-│   └── licenseUtils.ts    # License key generation & JWT
-├── drizzle/               # Database schema & migrations
-│   └── schema.ts          # Database tables
-├── python-sdk/            # Python client library
-│   ├── licensing_sdk/     # SDK source code
-│   ├── setup.py           # Package configuration
-│   └── README.md          # SDK documentation
-└── shared/                # Shared types & constants
+│   │   ├── pages/         # Seiten-Komponenten
+│   │   ├── components/    # Wiederverwendbare Komponenten
+│   │   ├── lib/           # Utilities
+│   │   └── index.css      # Globale Styles
+│   └── public/            # Statische Assets
+├── server/                # Backend (Express + tRPC)
+│   ├── routers.ts         # tRPC-Routers
+│   ├── db.ts              # Datenbankfunktionen
+│   ├── twoFARouter.ts     # 2FA-Endpoints
+│   └── twoFAUtils.ts      # 2FA-Utilities
+├── drizzle/               # Datenbankmigrationen
+│   └── schema.ts          # Datenbankschema
+├── python-sdk/            # Python SDK
+│   ├── licensing_sdk/     # SDK-Code
+│   ├── setup.py           # Setup-Konfiguration
+│   └── README.md          # SDK-Dokumentation
+└── todo.md                # Projekt-TODO
+
 ```
 
-## Technology Stack
+### Entwicklungsserver starten
 
-### Backend
-- **Node.js** + **Express** - Server runtime
-- **tRPC** - Type-safe API layer
-- **Drizzle ORM** - Database ORM
-- **MySQL/TiDB** - Database
-- **JWT** - Token-based authentication
+```bash
+pnpm dev
+```
 
-### Frontend
-- **React 19** - UI framework
-- **Tailwind CSS 4** - Styling
-- **shadcn/ui** - Component library
-- **Wouter** - Routing
+Dies startet:
+- Frontend auf `http://localhost:5173`
+- Backend auf `http://localhost:3000`
 
-### Python SDK
-- **Requests** - HTTP client
-- **PyJWT** - JWT token handling
+### Datenbank-Migrationen
 
-## License Models Supported
+Änderungen am Schema:
 
-| Model | Description | Use Case |
-|-------|-------------|----------|
-| **Subscription** | Time-limited with recurring billing | SaaS products |
-| **Perpetual** | One-time purchase, unlimited use | Traditional software |
-| **Node-Locked** | Tied to specific devices | Desktop applications |
-| **User-Based** | Tied to user accounts | Multi-device access |
-| **Feature-Based** | Unlocks specific features | Tiered pricing |
+```bash
+# Schema in drizzle/schema.ts bearbeiten
+# Dann:
+pnpm db:push
+```
 
-## API Endpoints
-
-### Public API (No Auth Required)
-- `POST /api/trpc/api.activate` - Activate a license
-- `POST /api/trpc/api.validate` - Validate a license token
-- `POST /api/trpc/api.deactivate` - Deactivate a license
-
-### Admin API (Auth Required)
-- Products: `list`, `create`, `update`, `delete`
-- Licenses: `list`, `create`, `update`, `revoke`
-- Customers: `list`, `create`, `get`
-- Activations: `list`, `byLicense`
-
-See [API Documentation](API_DOCUMENTATION.md) for details.
-
-## Development
-
-### Run Tests
+### Tests schreiben
 
 ```bash
 pnpm test
 ```
 
-### Build for Production
+### Code-Stil
+
+Das Projekt verwendet:
+- **ESLint:** Für JavaScript/TypeScript
+- **Prettier:** Für Code-Formatierung
+- **TypeScript:** Für Typ-Sicherheit
 
 ```bash
-pnpm build
+pnpm lint
+pnpm format
 ```
 
-### Database Migrations
+---
+
+## 🔒 Sicherheit
+
+### Best Practices
+
+1. **Umgebungsvariablen:** Speichern Sie niemals Secrets im Code
+2. **HTTPS:** Verwenden Sie immer HTTPS in Produktion
+3. **Rate Limiting:** Das System implementiert automatisches Rate Limiting
+4. **Token-Ablauf:** Tokens haben ein Ablaufdatum
+5. **Sichere Speicherung:** Passwörter werden gehashed
+
+### Sicherheitsfeatures
+
+- ✅ **JWT-Signatur:** Alle Tokens sind digital signiert
+- ✅ **Token-Blacklisting:** Ungültige Tokens werden verwaltet
+- ✅ **CORS:** Konfigurierbare Cross-Origin-Anfragen
+- ✅ **SQL-Injection-Schutz:** Drizzle ORM schützt automatisch
+- ✅ **XSS-Schutz:** React sanitiert automatisch
+- ✅ **CSRF-Schutz:** Implementiert für Admin-Operationen
+
+### Sicherheitsrichtlinien
+
+1. **Regelmäßige Updates:** Halten Sie Abhängigkeiten aktuell
+   ```bash
+   pnpm update
+   ```
+
+2. **Sicherheits-Audits:** Führen Sie regelmäßig Audits durch
+   ```bash
+   pnpm audit
+   ```
+
+3. **Backup:** Sichern Sie Ihre Datenbank regelmäßig
+
+4. **Monitoring:** Überwachen Sie Aktivitätslogs auf verdächtige Aktivitäten
+
+---
+
+## 🐛 Troubleshooting
+
+### Häufige Probleme
+
+#### 1. Datenbankverbindung fehlgeschlagen
+
+**Fehler:** `Error: connect ECONNREFUSED 127.0.0.1:3306`
+
+**Lösung:**
+```bash
+# Überprüfen Sie die DATABASE_URL
+echo $DATABASE_URL
+
+# Stellen Sie sicher, dass MySQL läuft
+sudo systemctl status mysql
+
+# Testen Sie die Verbindung
+mysql -u user -p -h localhost
+```
+
+#### 2. OAuth-Authentifizierung schlägt fehl
+
+**Fehler:** `Invalid OAuth credentials`
+
+**Lösung:**
+```bash
+# Überprüfen Sie die OAuth-Umgebungsvariablen
+echo $VITE_APP_ID
+echo $OAUTH_SERVER_URL
+
+# Stellen Sie sicher, dass die App-ID korrekt ist
+```
+
+#### 3. 2FA-QR-Code wird nicht angezeigt
+
+**Fehler:** `QR code generation failed`
+
+**Lösung:**
+```bash
+# Überprüfen Sie, dass speakeasy installiert ist
+npm list speakeasy
+
+# Installieren Sie neu, falls nötig
+pnpm install speakeasy
+```
+
+#### 4. Lizenzaktivierung schlägt fehl
+
+**Fehler:** `Invalid license key`
+
+**Lösung:**
+```bash
+# Überprüfen Sie die Lizenzschlüssel-Formatierung
+# Format sollte sein: XXXX-XXXX-XXXX-XXXX
+
+# Stellen Sie sicher, dass die Lizenz existiert
+# Überprüfen Sie im Admin-Portal
+```
+
+#### 5. Python SDK-Verbindung fehlgeschlagen
+
+**Fehler:** `ConnectionError: Failed to connect to server`
+
+**Lösung:**
+```python
+# Überprüfen Sie die Server-URL
+print(client.server_url)
+
+# Stellen Sie sicher, dass der Server läuft
+# curl https://your-license-server.com/api/health
+
+# Überprüfen Sie die Firewall
+```
+
+### Logging
+
+Aktivieren Sie Debug-Logging:
 
 ```bash
-# Generate migration from schema changes
-pnpm db:push
+# Backend
+DEBUG=* pnpm dev
 
-# View database in Drizzle Studio
-pnpm db:studio
+# Python SDK
+import logging
+logging.basicConfig(level=logging.DEBUG)
 ```
 
-## Deployment
+### Support
 
-For self-hosted deployment, see [DEPLOYMENT.md](DEPLOYMENT.md).
+Für weitere Hilfe:
+- 📧 Email: support@byte-commander.de
+- 🐛 GitHub Issues: https://github.com/TheRealByteCommander/software-licensing-concept/issues
+- 📚 Dokumentation: https://app.byte-commander.de/docs
 
-Typical production flow:
-1. Set `.env` (DB + secrets)
-2. Run `pnpm db:push`
-3. Build with `pnpm build`
-4. Start with `pnpm start` (or systemd/PM2)
-5. Verify `http://<host>:3000` and API health/routes
+---
 
-## Security Features
+## 📄 Lizenz
 
-- **Signed JWT Tokens**: Prevent token tampering
-- **Device Fingerprinting**: Unique device identification
-- **Activation Limits**: Enforce device restrictions
-- **License Revocation**: Instantly disable compromised keys
-- **Offline Validation**: 7-day grace period for offline use
+Dieses Projekt ist unter der MIT-Lizenz lizenziert. Siehe `LICENSE` für Details.
 
-## Contributing
+---
 
-Contributions are welcome! Please:
+## 🤝 Beitragen
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+Beiträge sind willkommen! Bitte:
 
-## Support
+1. Forken Sie das Repository
+2. Erstellen Sie einen Feature-Branch (`git checkout -b feature/AmazingFeature`)
+3. Committen Sie Ihre Änderungen (`git commit -m 'Add some AmazingFeature'`)
+4. Pushen Sie zum Branch (`git push origin feature/AmazingFeature`)
+5. Öffnen Sie einen Pull Request
 
-For questions or issues:
-- Check the [API Documentation](API_DOCUMENTATION.md)
-- Review the [Python SDK Guide](python-sdk/README.md)
-- Open an issue on GitHub
+---
 
-## License
+## 📞 Kontakt
 
-MIT License - see LICENSE file for details
+**Byte Commander**
+- Website: https://app.byte-commander.de
+- Email: info@byte-commander.de
+- GitHub: https://github.com/TheRealByteCommander
 
-## Acknowledgments
+---
 
-Built with:
-- [tRPC](https://trpc.io/) - End-to-end typesafe APIs
-- [Drizzle ORM](https://orm.drizzle.team/) - TypeScript ORM
-- [shadcn/ui](https://ui.shadcn.com/) - UI components
-- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS
+## 🎉 Danksagungen
+
+Dieses Projekt wurde mit modernen Technologien entwickelt:
+- **Express.js** - Web-Framework
+- **React 19** - Frontend-Framework
+- **tRPC** - Type-safe RPC
+- **Drizzle ORM** - Datenbankzugriff
+- **Tailwind CSS** - Styling
+- **Speakeasy** - TOTP-Generierung
+- **Manus Platform** - Hosting und OAuth
+
+---
+
+**Letzte Aktualisierung:** März 2026  
+**Version:** 1.0.0  
+**Status:** Produktionsreif
