@@ -7,6 +7,8 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { ENV } from "./env";
+import { createRateLimiter, isPublicApiPath } from "./rateLimit";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -36,6 +38,18 @@ async function startServer() {
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
   // tRPC API
+  const rateLimiter = createRateLimiter(
+    Math.max(1000, ENV.rateLimitWindowMs || 60000),
+    Math.max(1, ENV.rateLimitMaxRequests || 120)
+  );
+
+  app.use("/api/trpc", (req, res, next) => {
+    if (isPublicApiPath(req.path)) {
+      return rateLimiter(req, res, next);
+    }
+    return next();
+  });
+
   app.use(
     "/api/trpc",
     createExpressMiddleware({
