@@ -28,6 +28,7 @@ import { Plus, Pencil, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 const WEBHOOK_EVENTS = [
+  "license.created",
   "license.activated",
   "license.deactivated",
   "license.revoked",

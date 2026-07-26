@@ -3,6 +3,7 @@ import axios from "axios";
 import * as db from "./db";
 
 export const WEBHOOK_EVENTS = [
+  "license.created",
   "license.activated",
   "license.deactivated",
   "license.revoked",

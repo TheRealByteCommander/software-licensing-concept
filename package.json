@@ -9,7 +9,7 @@
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
-    "test": "JWT_SECRET=test-secret vitest run", 
+    "test": "JWT_SECRET=test-secret vitest run",
     "db:push": "drizzle-kit generate && drizzle-kit migrate"
   },
   "dependencies": {
@@ -73,6 +73,7 @@
     "sonner": "^2.0.7",
     "speakeasy": "^2.0.0",
     "streamdown": "^1.4.0",
+    "stripe": "^22.3.2",
     "superjson": "^1.13.3",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",

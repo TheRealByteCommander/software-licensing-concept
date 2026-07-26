@@ -48,6 +48,7 @@ export const licenses = mysqlTable("licenses", {
   licenseKey: varchar("licenseKey", { length: 128 }).notNull().unique(),
   productId: int("productId").notNull(),
   customerId: int("customerId"),
+  stripeSubscriptionId: varchar("stripeSubscriptionId", { length: 255 }),
   type: mysqlEnum("type", ["subscription", "perpetual", "node_locked", "user_based", "feature_based"]).notNull(),
   status: mysqlEnum("status", ["active", "expired", "revoked", "grace_period"]).default("active").notNull(),
   maxActivations: int("maxActivations").default(1),
@@ -116,6 +117,7 @@ export const customers = mysqlTable("customers", {
   email: varchar("email", { length: 320 }).notNull(),
   name: text("name"),
   company: text("company"),
+  stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -138,3 +140,65 @@ export const webhooks = mysqlTable("webhooks", {
 
 export type Webhook = typeof webhooks.$inferSelect;
 export type InsertWebhook = typeof webhooks.$inferInsert;
+
+/**
+ * Billing plans - maps Stripe Price IDs to license configuration
+ */
+export const billingPlans = mysqlTable("billingPlans", {
+  id: int("id").autoincrement().primaryKey(),
+  productId: int("productId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  stripePriceId: varchar("stripePriceId", { length: 255 }).notNull().unique(),
+  licenseType: mysqlEnum("licenseType", [
+    "subscription",
+    "perpetual",
+    "node_locked",
+    "user_based",
+    "feature_based",
+  ]).notNull(),
+  maxActivations: int("maxActivations").default(1),
+  renewalPeriodDays: int("renewalPeriodDays").default(365),
+  autoRenew: boolean("autoRenew").default(true).notNull(),
+  features: text("features"),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type BillingPlan = typeof billingPlans.$inferSelect;
+export type InsertBillingPlan = typeof billingPlans.$inferInsert;
+
+/**
+ * Stripe webhook events - idempotency tracking
+ */
+export const stripeEvents = mysqlTable("stripeEvents", {
+  id: int("id").autoincrement().primaryKey(),
+  stripeEventId: varchar("stripeEventId", { length: 255 }).notNull().unique(),
+  eventType: varchar("eventType", { length: 128 }).notNull(),
+  processedAt: timestamp("processedAt").defaultNow().notNull(),
+});
+
+export type StripeEvent = typeof stripeEvents.$inferSelect;
+export type InsertStripeEvent = typeof stripeEvents.$inferInsert;
+
+/**
+ * Stripe payments - checkout and invoice records linked to licenses
+ */
+export const stripePayments = mysqlTable("stripePayments", {
+  id: int("id").autoincrement().primaryKey(),
+  billingPlanId: int("billingPlanId").notNull(),
+  customerId: int("customerId"),
+  licenseKey: varchar("licenseKey", { length: 128 }),
+  stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", { length: 255 }),
+  stripeSubscriptionId: varchar("stripeSubscriptionId", { length: 255 }),
+  stripeCustomerId: varchar("stripeCustomerId", { length: 255 }),
+  stripeInvoiceId: varchar("stripeInvoiceId", { length: 255 }),
+  amountTotal: int("amountTotal"),
+  currency: varchar("currency", { length: 8 }),
+  status: mysqlEnum("status", ["pending", "completed", "failed", "refunded"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type StripePayment = typeof stripePayments.$inferSelect;
+export type InsertStripePayment = typeof stripePayments.$inferInsert;

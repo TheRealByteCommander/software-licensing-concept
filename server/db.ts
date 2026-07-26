@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, products, licenses, activations, customers, twoFASecrets, activationTokens, webhooks, InsertProduct, InsertLicense, InsertActivation, InsertCustomer, InsertTwoFASecret, InsertActivationToken, InsertWebhook } from "../drizzle/schema";
+import { InsertUser, users, products, licenses, activations, customers, twoFASecrets, activationTokens, webhooks, billingPlans, stripeEvents, stripePayments, InsertProduct, InsertLicense, InsertActivation, InsertCustomer, InsertTwoFASecret, InsertActivationToken, InsertWebhook, InsertBillingPlan, InsertStripeEvent, InsertStripePayment } from "../drizzle/schema";
 import { and, desc, isNull, eq } from "drizzle-orm";
 import { ENV } from './_core/env';
 
@@ -260,6 +260,24 @@ export async function getCustomerById(id: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function getCustomerByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(customers).where(eq(customers.email, email)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getCustomerByStripeId(stripeCustomerId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(customers)
+    .where(eq(customers.stripeCustomerId, stripeCustomerId))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
 export async function getLicensesByCustomerId(customerId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -270,6 +288,131 @@ export async function updateCustomer(id: number, data: Partial<InsertCustomer>) 
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.update(customers).set(data).where(eq(customers.id, id));
+}
+
+export async function getLicenseByStripeSubscriptionId(stripeSubscriptionId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(licenses)
+    .where(eq(licenses.stripeSubscriptionId, stripeSubscriptionId))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getStripePaymentByCheckoutSessionId(stripeCheckoutSessionId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(stripePayments)
+    .where(eq(stripePayments.stripeCheckoutSessionId, stripeCheckoutSessionId))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getStripePaymentByInvoiceId(stripeInvoiceId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(stripePayments)
+    .where(eq(stripePayments.stripeInvoiceId, stripeInvoiceId))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// ========== Billing Plans ==========
+export async function getAllBillingPlans() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(billingPlans).orderBy(desc(billingPlans.createdAt));
+}
+
+export async function getActiveBillingPlans() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(billingPlans)
+    .where(eq(billingPlans.active, true))
+    .orderBy(desc(billingPlans.createdAt));
+}
+
+export async function getBillingPlanById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(billingPlans).where(eq(billingPlans.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getBillingPlanByStripePriceId(stripePriceId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(billingPlans)
+    .where(eq(billingPlans.stripePriceId, stripePriceId))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createBillingPlan(plan: InsertBillingPlan) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(billingPlans).values(plan);
+  return result;
+}
+
+export async function updateBillingPlan(id: number, data: Partial<InsertBillingPlan>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(billingPlans).set(data).where(eq(billingPlans.id, id));
+}
+
+export async function deleteBillingPlan(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(billingPlans).where(eq(billingPlans.id, id));
+}
+
+// ========== Stripe Events ==========
+export async function hasProcessedStripeEvent(stripeEventId: string) {
+  const db = await getDb();
+  if (!db) return false;
+  const result = await db
+    .select({ id: stripeEvents.id })
+    .from(stripeEvents)
+    .where(eq(stripeEvents.stripeEventId, stripeEventId))
+    .limit(1);
+  return result.length > 0;
+}
+
+export async function markStripeEventProcessed(event: InsertStripeEvent) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(stripeEvents).values(event);
+}
+
+// ========== Stripe Payments ==========
+export async function createStripePayment(payment: InsertStripePayment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(stripePayments).values(payment);
+  return result;
+}
+
+export async function updateStripePayment(id: number, data: Partial<InsertStripePayment>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(stripePayments).set(data).where(eq(stripePayments.id, id));
+}
+
+export async function getAllStripePayments() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(stripePayments).orderBy(desc(stripePayments.createdAt));
 }
 
 // ========== Webhooks ==========

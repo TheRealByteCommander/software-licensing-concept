@@ -176,6 +176,12 @@ VITE_APP_LOGO=https://your-domain.com/logo.png
 # Owner
 OWNER_NAME=Your Name
 OWNER_OPEN_ID=your-open-id
+
+# Stripe (optional – für Lizenzverkauf via Checkout)
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+APP_BASE_URL=https://your-domain.com
 ```
 
 ### Datenbank initialisieren

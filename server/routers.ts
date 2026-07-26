@@ -8,6 +8,7 @@ import { generateLicenseKey, generateLicenseToken, verifyLicenseToken } from "./
 import { TRPCError } from "@trpc/server";
 import { twoFARouter } from "./twoFARouter";
 import { webhooksRouter } from "./webhooksRouter";
+import { stripeRouter } from "./stripeRouter";
 import { isActivationStale } from "./licensePolicy";
 import { prepareLicenseForUse, licensesToCsv } from "./licenseFlow";
 import { dispatchWebhookEvent } from "./webhooks";
@@ -371,6 +372,7 @@ export const appRouter = router({
   }),
   twoFA: twoFARouter,
   webhooks: webhooksRouter,
+  stripe: stripeRouter,
 });
 
 export type AppRouter = typeof appRouter;
