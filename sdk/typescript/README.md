@@ -1,6 +1,6 @@
 # JS/TS License Client (lightweight)
 
-Minimal typed client for fast integration.
+Minimal typed client for fast integration. Handles the tRPC **superjson** wire format automatically.
 
 ## Copy-paste usage
 

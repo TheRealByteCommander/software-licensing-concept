@@ -1,6 +1,8 @@
 # Byte Commander License Server - Deployment Guide
 
-This guide explains how to deploy the Byte Commander License Server to production. The system includes 2FA-protected license activations and flexible licensing models.
+This guide explains how to deploy the Byte Commander License Server to production.
+
+**Admin setup after deployment:** [docs/ANLEITUNG_LIZENZADMIN.md](docs/ANLEITUNG_LIZENZADMIN.md)
 
 ## Prerequisites
 
@@ -20,6 +22,9 @@ The following environment variables are automatically configured by the Manus pl
 - `OWNER_OPEN_ID`, `OWNER_NAME`: Owner's info
 - `VITE_APP_TITLE`: Application title (default: "Byte Commander License Server")
 - `VITE_APP_LOGO`: Logo image URL (Byte Commander logo)
+- `LOCAL_AUTH_ENABLED`: Set to `true` for explicit local admin mode (optional)
+- `LOCAL_AUTH_OPEN_ID`, `LOCAL_AUTH_NAME`, `LOCAL_AUTH_EMAIL`: Local admin identity
+- `RATE_LIMIT_MAX_REQUESTS`, `RATE_LIMIT_WINDOW_MS`: Public API rate limits
 
 ## Deployment Steps
 
@@ -100,28 +105,28 @@ The easiest way to deploy is using the Manus platform's built-in deployment:
 
 ### 1. Create Your First Product
 
-Log in to the admin portal and create a product:
+See [docs/ANLEITUNG_LIZENZADMIN.md](docs/ANLEITUNG_LIZENZADMIN.md) for the full workflow.
 
-1. Navigate to "Products"
-2. Click "Add Product"
+1. Navigate to **Products** (`/products`)
+2. Click **Add Product**
 3. Enter product name and description
-4. Save
+4. Optional: open the **Shield** dialog to configure 2FA
 
 ### 2. Generate Licenses
 
-1. Navigate to "Licenses"
-2. Click "Create License"
-3. Select the product
-4. Choose license type and settings
-5. Save and copy the generated license key
+1. Navigate to **Licenses** (`/licenses`)
+2. Click **Create License**
+3. Select product, license type, max activations, optional expiry
+4. Copy the generated license key
 
 ### 3. Distribute to Customers
 
 Provide customers with:
 - The license key
-- The server URL (e.g., `https://license.example.com`)
-- The product ID
-- The Python SDK or integration instructions
+- The server URL (e.g. `https://license.example.com`)
+- The product ID (if required by your integration)
+- [End-user guide](docs/ANLEITUNG_SOFTWARENUTZER.md) or your own onboarding
+- SDK / integration docs: [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)
 
 ## Monitoring
 

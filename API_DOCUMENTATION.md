@@ -9,7 +9,44 @@ For production integrations, use the versioned API contract:
 - **OpenAPI v1:** [`api/openapi.v1.yaml`](api/openapi.v1.yaml)
 - **Integration quickstart (Python/Node/.NET):** [`INTEGRATION_GUIDE.md`](INTEGRATION_GUIDE.md)
 
-The OpenAPI file defines request/response payloads and a consistent error envelope (`error.code`, `error.message`, optional `error.data`) for the public activation + 2FA endpoints.
+The OpenAPI file defines request/response payloads and a consistent error envelope for the public activation + 2FA endpoints.
+
+## Wire Format (tRPC + superjson)
+
+The server uses **tRPC with superjson**. Direct HTTP clients must wrap payloads accordingly (SDKs handle this automatically):
+
+**Request:**
+```json
+{ "json": { "licenseKey": "XXXX-XXXX-XXXX-XXXX", "deviceId": "device-123" } }
+```
+
+**Success response:**
+```json
+{
+  "result": {
+    "data": {
+      "json": { "success": true, "token": "...", "message": "Activation successful" }
+    }
+  }
+}
+```
+
+**Error response:**
+```json
+{
+  "error": {
+    "json": {
+      "message": "License not found",
+      "code": -32004,
+      "data": { "code": "NOT_FOUND", "httpStatus": 404, "path": "api.activate" }
+    }
+  }
+}
+```
+
+Use `error.json.data.code` as the semantic error code (`NOT_FOUND`, `FORBIDDEN`, etc.).
+
+**User & admin guides:** [docs/ANLEITUNG_SOFTWARENUTZER.md](docs/ANLEITUNG_SOFTWARENUTZER.md) · [docs/ANLEITUNG_LIZENZADMIN.md](docs/ANLEITUNG_LIZENZADMIN.md)
 
 ## Base URL
 
@@ -41,9 +78,11 @@ Activate a license on a specific device.
 
 ```json
 {
-  "licenseKey": "XXXX-XXXX-XXXX-XXXX",
-  "deviceId": "unique-device-identifier",
-  "deviceInfo": "{\"platform\":\"Linux\",\"version\":\"5.15.0\"}"
+  "json": {
+    "licenseKey": "XXXX-XXXX-XXXX-XXXX",
+    "deviceId": "unique-device-identifier",
+    "deviceInfo": "{\"platform\":\"Linux\",\"version\":\"5.15.0\"}"
+  }
 }
 ```
 
@@ -53,9 +92,11 @@ Activate a license on a specific device.
 {
   "result": {
     "data": {
-      "success": true,
-      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-      "message": "Activation successful"
+      "json": {
+        "success": true,
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "message": "Activation successful"
+      }
     }
   }
 }
@@ -66,8 +107,11 @@ Activate a license on a specific device.
 ```json
 {
   "error": {
-    "code": "FORBIDDEN",
-    "message": "License is revoked"
+    "json": {
+      "message": "License is revoked",
+      "code": -32003,
+      "data": { "code": "FORBIDDEN", "httpStatus": 403, "path": "api.activate" }
+    }
   }
 }
 ```
@@ -88,7 +132,9 @@ Validate an existing license token.
 
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "json": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
 }
 ```
 
@@ -98,12 +144,14 @@ Validate an existing license token.
 {
   "result": {
     "data": {
-      "valid": true,
-      "license": {
-        "productId": 1,
-        "type": "subscription",
-        "expiresAt": "2025-12-31T23:59:59.000Z",
-        "features": ["premium", "api_access"]
+      "json": {
+        "valid": true,
+        "license": {
+          "productId": 1,
+          "type": "subscription",
+          "expiresAt": "2025-12-31T23:59:59.000Z",
+          "features": ["premium", "api_access"]
+        }
       }
     }
   }
@@ -116,8 +164,10 @@ Validate an existing license token.
 {
   "result": {
     "data": {
-      "valid": false,
-      "message": "License has expired"
+      "json": {
+        "valid": false,
+        "message": "License has expired"
+      }
     }
   }
 }
@@ -135,8 +185,10 @@ Deactivate a license on a specific device.
 
 ```json
 {
-  "licenseKey": "XXXX-XXXX-XXXX-XXXX",
-  "deviceId": "unique-device-identifier"
+  "json": {
+    "licenseKey": "XXXX-XXXX-XXXX-XXXX",
+    "deviceId": "unique-device-identifier"
+  }
 }
 ```
 
@@ -146,8 +198,10 @@ Deactivate a license on a specific device.
 {
   "result": {
     "data": {
-      "success": true,
-      "message": "Deactivation successful"
+      "json": {
+        "success": true,
+        "message": "Deactivation successful"
+      }
     }
   }
 }
@@ -316,18 +370,25 @@ The API implements rate limiting to prevent abuse. If you exceed the rate limit,
 
 ## Error Handling
 
-All errors follow the tRPC error format:
+All errors follow the tRPC + superjson error format:
 
 ```json
 {
   "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable error message"
+    "json": {
+      "message": "Human-readable error message",
+      "code": -32004,
+      "data": {
+        "code": "NOT_FOUND",
+        "httpStatus": 404,
+        "path": "api.activate"
+      }
+    }
   }
 }
 ```
 
-Common error codes:
+Common semantic codes (`error.json.data.code`):
 - `BAD_REQUEST`: Invalid request parameters
 - `UNAUTHORIZED`: Authentication required
 - `FORBIDDEN`: Access denied
@@ -349,9 +410,11 @@ Initiate a license activation that requires 2FA confirmation.
 
 ```json
 {
-  "licenseKey": "XXXX-XXXX-XXXX-XXXX",
-  "deviceId": "unique-device-identifier",
-  "deviceInfo": "{\"platform\":\"Linux\",\"version\":\"5.15.0\"}"
+  "json": {
+    "licenseKey": "XXXX-XXXX-XXXX-XXXX",
+    "deviceId": "unique-device-identifier",
+    "deviceInfo": "{\"platform\":\"Linux\",\"version\":\"5.15.0\"}"
+  }
 }
 ```
 
@@ -361,10 +424,11 @@ Initiate a license activation that requires 2FA confirmation.
 {
   "result": {
     "data": {
-      "success": true,
-      "activationToken": "random-token-string",
-      "expiresIn": 600,
-      "message": "Activation initiated. Please provide TOTP code to confirm."
+      "json": {
+        "success": true,
+        "activationToken": "random-token-string",
+        "expiresIn": 600
+      }
     }
   }
 }
@@ -380,8 +444,10 @@ Confirm the activation with a TOTP code from Google Authenticator.
 
 ```json
 {
-  "activationToken": "token-from-step-1",
-  "totpCode": "123456"
+  "json": {
+    "activationToken": "token-from-step-1",
+    "totpCode": "123456"
+  }
 }
 ```
 
@@ -391,9 +457,11 @@ Confirm the activation with a TOTP code from Google Authenticator.
 {
   "result": {
     "data": {
-      "success": true,
-      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-      "message": "2FA verification successful, license activated"
+      "json": {
+        "success": true,
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "message": "2FA verification successful, license activated"
+      }
     }
   }
 }
