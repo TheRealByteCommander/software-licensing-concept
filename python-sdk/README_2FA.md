@@ -24,7 +24,7 @@
 from licensing_sdk import LicenseClientWith2FA
 
 client = LicenseClientWith2FA(
-    server_url="https://your-license-server.com",
+    server_url="<license-server-url>",
     product_id=1
 )
 

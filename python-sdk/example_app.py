@@ -9,7 +9,7 @@ import sys
 
 def main():
     # Configuration
-    SERVER_URL = "https://your-license-server.com"  # Replace with your server URL
+    SERVER_URL = "<license-server-url>"  # Replace with your server URL
     PRODUCT_ID = 1  # Replace with your product ID
     
     print("=" * 60)

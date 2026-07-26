@@ -32,7 +32,7 @@ from licensing_sdk import LicenseClient
 
 # Initialize the client
 client = LicenseClient(
-    server_url="https://your-license-server.com",
+    server_url="<license-server-url>",
     product_id=1,
     license_key="XXXX-XXXX-XXXX-XXXX"
 )
@@ -145,7 +145,7 @@ Deactivate the license on this device.
 from licensing_sdk import LicenseClient
 
 client = LicenseClient(
-    server_url="https://your-license-server.com",
+    server_url="<license-server-url>",
     product_id=1
 )
 
@@ -171,7 +171,7 @@ from licensing_sdk import LicenseClientWith2FA
 
 # Initialize the 2FA client
 client = LicenseClientWith2FA(
-    server_url="https://your-license-server.com",
+    server_url="<license-server-url>",
     product_id=1,
     license_key="XXXX-XXXX-XXXX-XXXX"
 )

@@ -31,7 +31,7 @@ pip install -e .
 from licensing_sdk import LicenseClient
 
 client = LicenseClient(
-    server_url="https://your-license-server.com",
+    server_url="<license-server-url>",
     product_id=1,
     license_key="XXXX-XXXX-XXXX-XXXX"
 )
@@ -83,7 +83,7 @@ Works for both **subscription** and **one-time** billing plans.
 ```ts
 import { LicenseClient } from "./sdk/typescript/license-client";
 
-const client = new LicenseClient({ baseUrl: "https://your-license-server.com" });
+const client = new LicenseClient({ baseUrl: "<license-server-url>" });
 
 const activation = await client.activate({
   licenseKey: "XXXX-XXXX-XXXX-XXXX",
@@ -112,7 +112,7 @@ const done = await client.confirmActivation2FA({ activationToken: init.activatio
 ```csharp
 using ByteCommander.Licensing;
 
-var client = new LicenseClient(new HttpClient(), "https://your-license-server.com");
+var client = new LicenseClient(new HttpClient(), "<license-server-url>");
 var activation = await client.ActivateAsync(new ActivateRequest("XXXX-XXXX-XXXX-XXXX", "device-123"));
 var validation = await client.ValidateAsync(new ValidateRequest(activation.Token));
 ```

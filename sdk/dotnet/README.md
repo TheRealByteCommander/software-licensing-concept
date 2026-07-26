@@ -8,7 +8,7 @@ Simple, dependency-light client for fast integration. Handles the tRPC **superjs
 using ByteCommander.Licensing;
 
 var httpClient = new HttpClient();
-var client = new LicenseClient(httpClient, "https://your-license-server.com");
+var client = new LicenseClient(httpClient, "<license-server-url>");
 
 var activation = await client.ActivateAsync(
     new ActivateRequest("XXXX-XXXX-XXXX-XXXX", "device-123")

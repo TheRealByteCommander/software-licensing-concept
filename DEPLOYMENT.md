@@ -123,7 +123,7 @@ See [docs/ANLEITUNG_LIZENZADMIN.md](docs/ANLEITUNG_LIZENZADMIN.md) for the full 
 
 Provide customers with:
 - The license key
-- The server URL (e.g. `https://license.example.com`)
+- The server URL (e.g. `<license-server-url>`)
 - The product ID (if required by your integration)
 - [End-user guide](docs/ANLEITUNG_SOFTWARENUTZER.md) or your own onboarding
 - SDK / integration docs: [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md)
@@ -135,7 +135,7 @@ Provide customers with:
 The application provides a health check endpoint:
 
 ```bash
-curl https://license.example.com/
+curl <license-server-url>/
 ```
 
 ### Database Monitoring

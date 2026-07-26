@@ -262,7 +262,7 @@ export default function Webhooks() {
                 id="webhook-url"
                 value={form.url}
                 onChange={e => setForm({ ...form, url: e.target.value })}
-                placeholder="https://example.com/hooks/licenses"
+                placeholder="ihre-domain.de/hooks/licenses"
               />
             </div>
             <div>

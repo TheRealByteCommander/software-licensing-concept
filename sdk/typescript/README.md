@@ -8,7 +8,7 @@ Minimal typed client for fast integration. Handles the tRPC **superjson** wire f
 import { LicenseClient } from "./sdk/typescript/license-client";
 
 const client = new LicenseClient({
-  baseUrl: "https://your-license-server.com",
+  baseUrl: "<license-server-url>",
 });
 
 const activation = await client.activate({

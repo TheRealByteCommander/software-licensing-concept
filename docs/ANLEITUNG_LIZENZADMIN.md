@@ -8,7 +8,7 @@ Diese Anleitung beschreibt den **tatsächlichen Stand** des Byte Commander Licen
 
 | Voraussetzung | Details |
 |---|---|
-| Zugriff | URL des License Servers (z. B. `https://app.byte-commander.de`) |
+| Zugriff | URL des License Servers (z. B. `<ihre-server-url>`) |
 | Anmeldung | BC OAuth **oder** lokaler Admin-Modus (Self-Hosting ohne OAuth) |
 | Rolle | Admin-Benutzer (Owner oder `role: admin`) |
 
@@ -117,7 +117,7 @@ flowchart LR
 Dem Software-Nutzer mitteilen:
 
 - **Lizenzschlüssel** (z. B. `ABCD-EFGH-IJKL-MNOP`)
-- **Server-URL** (z. B. `https://app.byte-commander.de`)
+- **Server-URL** (z. B. `<ihre-server-url>`)
 - **Produkt-ID** (falls von der Software benötigt)
 - Hinweis auf **2FA**, falls für das Produkt aktiviert
 - Link zur [Software-Nutzer-Anleitung](./ANLEITUNG_SOFTWARENUTZER.md)
@@ -226,7 +226,7 @@ Der License Server nutzt **Stripe Checkout** für den Verkauf von Lizenzen. Nach
 
 1. Stripe-Konto mit angelegten **Products** und **Prices**
 2. Umgebungsvariablen `STRIPE_SECRET_KEY` und `STRIPE_WEBHOOK_SECRET`
-3. Webhook in Stripe Dashboard auf `https://<ihr-server>/api/stripe/webhook` mit Events:
+3. Webhook in Stripe Dashboard auf `<ihr-server>/api/stripe/webhook` mit Events:
    - `checkout.session.completed`
    - `checkout.session.async_payment_succeeded`
    - `invoice.paid`
@@ -269,7 +269,7 @@ Damit kann die Anwendung **sofort** `api.activate` aufrufen – ohne auf E-Mail 
 Empfohlene Success-URL:
 
 ```
-https://example.com/checkout?success=1&session_id={CHECKOUT_SESSION_ID}
+<ihre-domain>/checkout?success=1&session_id={CHECKOUT_SESSION_ID}
 ```
 
 ### Ablauf
@@ -299,12 +299,12 @@ flowchart LR
 {
   "billingPlanId": 1,
   "customerEmail": "kunde@example.com",
-  "successUrl": "https://example.com/checkout?success=1",
-  "cancelUrl": "https://example.com/checkout?canceled=1"
+  "successUrl": "<ihre-domain>/checkout?success=1",
+  "cancelUrl": "<ihre-domain>/checkout?canceled=1"
 }
 ```
 
-Antwort: `{ "sessionId": "cs_...", "url": "https://checkout.stripe.com/...", "billingModel": "one_time" }`
+Antwort: `{ "sessionId": "cs_...", "url": "Stripe Checkout (externer Redirect)", "billingModel": "one_time" }`
 
 **Lizenz sofort abrufen** (nach Redirect):
 

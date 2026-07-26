@@ -8,7 +8,7 @@ info:
     Note: The server endpoints are implemented as tRPC procedures and therefore use
     procedure-style paths under `/api/trpc/*` and wrapped response envelopes.
 servers:
-  - url: https://your-license-server.com
+  - url: <license-server-url>
     description: Production
   - url: http://localhost:3000
     description: Local development
