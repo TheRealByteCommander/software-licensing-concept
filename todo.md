@@ -49,6 +49,15 @@
 - [x] Update Python SDK to support 2FA activation
 - [x] Test 2FA integration end-to-end
 
+## Admin Feature Completion
+- [x] License edit UI (status, customer, metadata, expiry)
+- [x] Customer assignment on license create/edit
+- [x] Metadata fields in UI (features, stale seats, auto-renew)
+- [x] CSV export for licenses
+- [x] Webhooks (backend + admin UI)
+- [x] Subscription auto-renewal on validate/activate
+- [x] Activation filters in admin portal
+
 
 ## 2FA Refinement (Activation Only)
 - [x] Update activation endpoint to require 2FA for new activations only

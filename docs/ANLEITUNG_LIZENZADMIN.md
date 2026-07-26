@@ -210,20 +210,65 @@ Details: [DEPLOYMENT.md](../DEPLOYMENT.md)
 
 ---
 
-## 8. Bekannte Grenzen (Stand aktuell)
+## 8. Webhooks (externe Integration)
 
-| Bereich | Status |
+Unter **Webhooks** (`/webhooks`) können HTTP-Endpunkte für Lizenz-Ereignisse registriert werden:
+
+| Event | Auslöser |
 |---|---|
-| Lizenz bearbeiten im UI | Nur Erstellen + Widerrufen; Status/Ablauf über API |
-| Kunde bei Lizenz-Erstellung | UI-Feld fehlt – API `customerId` nutzen |
-| Feature-Metadata | UI-Feld fehlt – API `metadata` nutzen |
-| CSV-Export | Nicht implementiert |
-| Webhooks | Geplant, nicht verfügbar |
-| Automatische Abo-Verlängerung | Nicht implementiert – manuell neue Lizenz / Ablauf anpassen |
+| `license.activated` | Neue Geräte-Aktivierung (inkl. 2FA) |
+| `license.deactivated` | Gerät deaktiviert |
+| `license.revoked` | Lizenz widerrufen |
+| `license.expired` | Lizenz abgelaufen |
+| `license.renewed` | Auto-Renewal verlängert Ablauf |
+
+Payload-Format:
+
+```json
+{
+  "event": "license.activated",
+  "timestamp": "2026-07-26T12:00:00.000Z",
+  "data": { "licenseKey": "...", "productId": 1, "deviceId": "..." }
+}
+```
+
+Bei gesetztem Secret wird `X-License-Signature` als HMAC-SHA256 über den JSON-Body mitgeliefert.
 
 ---
 
-## 9. Checkliste vor Go-Live
+## 9. Auto-Renewal (Abonnements)
+
+Für Lizenztyp **Subscription** kann im Lizenz-Dialog **Auto-Renew Subscription** aktiviert werden.
+
+- **Renewal Period Days** – Verlängerungszeitraum (Standard: 365 Tage)
+- Verlängerung erfolgt automatisch bei **Aktivierung** oder **Validierung**, wenn das Ablaufdatum überschritten ist
+- Event `license.renewed` wird per Webhook gesendet (falls konfiguriert)
+
+---
+
+## 10. CSV-Export
+
+Auf der Seite **Licenses** → **Export CSV** lädt die aktuelle Lizenzliste als CSV herunter (inkl. Metadata-Spalte).
+
+---
+
+## 11. Aktivierungsfilter
+
+Unter **Activations** können Einträge nach Produkt, Status (Active/Deactivated) und Lizenzschlüssel gefiltert werden.
+
+---
+
+## 12. Hinweise
+
+| Bereich | Verhalten |
+|---|---|
+| Lizenz bearbeiten | Status, Kunde, Ablauf, Metadata, Max Activations über Edit-Dialog |
+| Feature-Metadata | Felder Features, Stale Activation Days, Auto-Renew im Lizenz-Dialog |
+| Kunde zuweisen | Beim Erstellen und Bearbeiten einer Lizenz |
+
+---
+
+## 13. Checkliste vor Go-Live
 
 - [ ] `JWT_SECRET` gesetzt (min. 32 Zeichen, zufällig)
 - [ ] `DATABASE_URL` erreichbar, `pnpm db:push` ausgeführt
@@ -232,11 +277,12 @@ Details: [DEPLOYMENT.md](../DEPLOYMENT.md)
 - [ ] Erstes Produkt + Testlizenz erstellt
 - [ ] Testaktivierung mit SDK oder Kunden-Software erfolgreich
 - [ ] 2FA getestet (falls produktiv erforderlich)
+- [ ] Webhooks konfiguriert (falls CRM/Billing-Anbindung benötigt)
 - [ ] Kunden-Anleitung versendet
 
 ---
 
-## 10. Weiterführende Links
+## 14. Weiterführende Links
 
 - [Anleitung Software-Nutzer](./ANLEITUNG_SOFTWARENUTZER.md)
 - [Integration für Entwickler](../INTEGRATION_GUIDE.md)

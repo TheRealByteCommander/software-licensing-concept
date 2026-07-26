@@ -1,5 +1,15 @@
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -12,7 +22,16 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Activations() {
-  const { data: activations, isLoading } = trpc.activations.list.useQuery();
+  const [productId, setProductId] = useState<string>("all");
+  const [status, setStatus] = useState<"all" | "active" | "deactivated">("all");
+  const [licenseKey, setLicenseKey] = useState("");
+
+  const { data: products } = trpc.products.list.useQuery();
+  const { data: activations, isLoading } = trpc.activations.list.useQuery({
+    productId: productId !== "all" ? parseInt(productId, 10) : undefined,
+    status,
+    licenseKey: licenseKey.trim() || undefined,
+  });
 
   return (
     <div className="space-y-6">
@@ -23,13 +42,59 @@ export default function Activations() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Filters</CardTitle>
+          <CardDescription>Filter activations by product, status, or license key</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-3">
+          <div>
+            <Label>Product</Label>
+            <Select value={productId} onValueChange={setProductId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All products</SelectItem>
+                {products?.map(product => (
+                  <SelectItem key={product.id} value={product.id.toString()}>
+                    {product.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Status</Label>
+            <Select value={status} onValueChange={value => setStatus(value as typeof status)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="deactivated">Deactivated</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="licenseKeyFilter">License Key</Label>
+            <Input
+              id="licenseKeyFilter"
+              value={licenseKey}
+              onChange={e => setLicenseKey(e.target.value)}
+              placeholder="XXXX-XXXX-XXXX-XXXX"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Activation Log</CardTitle>
           <CardDescription>Complete history of license activations and deactivations</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="space-y-2">
-              <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
@@ -46,7 +111,7 @@ export default function Activations() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activations.map((activation) => (
+                {activations.map(activation => (
                   <TableRow key={activation.id}>
                     <TableCell className="font-mono text-sm">{activation.licenseKey}</TableCell>
                     <TableCell className="font-mono text-xs">
@@ -71,7 +136,7 @@ export default function Activations() {
               </TableBody>
             </Table>
           ) : (
-            <p className="text-sm text-muted-foreground">No activations yet</p>
+            <p className="text-sm text-muted-foreground">No activations match the current filters</p>
           )}
         </CardContent>
       </Card>

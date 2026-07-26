@@ -122,3 +122,19 @@ export const customers = mysqlTable("customers", {
 
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = typeof customers.$inferInsert;
+
+/**
+ * Webhooks table - outbound event notifications for external integrations
+ */
+export const webhooks = mysqlTable("webhooks", {
+  id: int("id").autoincrement().primaryKey(),
+  url: varchar("url", { length: 2048 }).notNull(),
+  secret: varchar("secret", { length: 255 }),
+  events: text("events").notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Webhook = typeof webhooks.$inferSelect;
+export type InsertWebhook = typeof webhooks.$inferInsert;

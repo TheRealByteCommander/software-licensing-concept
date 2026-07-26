@@ -4,6 +4,8 @@ import * as db from "./db";
 import { generateTwoFASecret, generateQRCodeDataUrl, verifyTOTP, generateBackupCodes } from "./twoFAUtils";
 import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
+import { prepareLicenseForUse } from "./licenseFlow";
+import { dispatchWebhookEvent } from "./webhooks";
 
 export const twoFARouter = router({
   /**
@@ -105,13 +107,8 @@ export const twoFARouter = router({
       deviceInfo: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
-      // Get license
-      const license = await db.getLicenseByKey(input.licenseKey);
-      if (!license) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "License not found" });
-      }
+      const { license } = await prepareLicenseForUse(input.licenseKey);
 
-      // Get product
       const product = await db.getProductById(license.productId);
       if (!product) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Product not found" });
@@ -119,25 +116,12 @@ export const twoFARouter = router({
 
       // Check if 2FA is required
       if (!product.require2FA) {
-        // If 2FA is not required, proceed directly with activation
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Use regular activation endpoint for non-2FA products",
         });
       }
 
-      // Check license status
-      if (license.status !== "active") {
-        throw new TRPCError({ code: "FORBIDDEN", message: `License is ${license.status}` });
-      }
-
-      // Check expiration
-      if (license.expiresAt && new Date(license.expiresAt) < new Date()) {
-        await db.updateLicense(input.licenseKey, { status: "expired" });
-        throw new TRPCError({ code: "FORBIDDEN", message: "License has expired" });
-      }
-
-      // Check if already activated on this device
       const existingActivation = await db.getActivationByDeviceAndLicense(
         input.licenseKey,
         input.deviceId
@@ -195,20 +179,15 @@ export const twoFARouter = router({
         });
       }
 
-      // Check expiration
       if (new Date(token.expiresAt) < new Date()) {
         await db.deleteActivationToken(input.activationToken);
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: "Activation token has expired",
-      });
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Activation token has expired",
+        });
       }
 
-      // Get license and product
-      const license = await db.getLicenseByKey(token.licenseKey);
-      if (!license) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "License not found" });
-      }
+      const { license } = await prepareLicenseForUse(token.licenseKey);
 
       const product = await db.getProductById(license.productId);
       if (!product) {
@@ -236,18 +215,6 @@ export const twoFARouter = router({
       // Delete the activation token
       await db.deleteActivationToken(input.activationToken);
 
-      // Check license status
-      if (license.status !== "active") {
-        throw new TRPCError({ code: "FORBIDDEN", message: `License is ${license.status}` });
-      }
-
-      // Check expiration
-      if (license.expiresAt && new Date(license.expiresAt) < new Date()) {
-        await db.updateLicense(token.licenseKey, { status: "expired" });
-        throw new TRPCError({ code: "FORBIDDEN", message: "License has expired" });
-      }
-
-      // Check activation limit
       const activeActivations = await db.getActivationsByLicense(token.licenseKey);
       if (license.maxActivations && activeActivations.length >= license.maxActivations) {
         throw new TRPCError({
@@ -265,12 +232,20 @@ export const twoFARouter = router({
 
       // Generate license token
       const { generateLicenseToken } = await import("./licenseUtils");
+      const metadata = license.metadata ? JSON.parse(license.metadata) : {};
       const licenseToken = generateLicenseToken({
         licenseKey: token.licenseKey,
         productId: license.productId,
         deviceId: token.deviceId,
         expiresAt: license.expiresAt,
-        features: license.metadata ? JSON.parse(license.metadata).features : [],
+        features: metadata.features ?? [],
+      });
+
+      void dispatchWebhookEvent("license.activated", {
+        licenseKey: token.licenseKey,
+        productId: license.productId,
+        deviceId: token.deviceId,
+        via2FA: true,
       });
 
       return {

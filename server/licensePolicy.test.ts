@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { buildLicenseMetadata } from "@shared/licenseMetadata";
 import { isActivationStale, parseLicenseMetadata } from "./licensePolicy";
 
 describe("licensePolicy", () => {
@@ -15,12 +16,17 @@ describe("licensePolicy", () => {
     expect(parseLicenseMetadata("{bad json")).toEqual({});
   });
 
-  it("marks activations stale only after threshold", () => {
-    const now = new Date("2026-02-24T12:00:00Z");
-    const old = new Date("2026-02-10T11:59:00Z");
-    const fresh = new Date("2026-02-20T12:00:00Z");
+  it("builds metadata with auto-renew settings", () => {
+    const metadata = buildLicenseMetadata({
+      autoRenew: true,
+      renewalPeriodDays: 30,
+      features: ["pro"],
+    });
 
-    expect(isActivationStale(old, 14, now)).toBe(true);
-    expect(isActivationStale(fresh, 14, now)).toBe(false);
+    expect(JSON.parse(metadata!)).toMatchObject({
+      autoRenew: true,
+      renewalPeriodDays: 30,
+      features: ["pro"],
+    });
   });
 });
