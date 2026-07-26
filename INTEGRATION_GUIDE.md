@@ -50,6 +50,30 @@ from licensing_sdk import LicenseClientWith2FA
 
 ---
 
+## Stripe purchase + immediate activation
+
+1. List plans: `GET /api/trpc/stripe.plans.listPublic`
+2. Start checkout: `POST /api/trpc/stripe.createCheckoutSession`
+3. After Stripe redirect (use `session_id={CHECKOUT_SESSION_ID}` in success URL):
+   - `GET /api/trpc/stripe.getCheckoutResult?input={"json":{"sessionId":"cs_..."}}`
+4. Activate immediately:
+
+```ts
+const purchase = await client.getCheckoutResult({ sessionId });
+if (!purchase.readyToActivate || !purchase.licenseKey) {
+  throw new Error("License not ready yet");
+}
+
+const activation = await client.activate({
+  licenseKey: purchase.licenseKey,
+  deviceId: "device-123",
+});
+```
+
+Works for both **subscription** and **one-time** billing plans.
+
+---
+
 ## Node / TypeScript (new lightweight module)
 
 1. Copy/import `sdk/typescript/license-client.ts`.

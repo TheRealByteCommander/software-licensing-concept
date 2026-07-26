@@ -3,8 +3,11 @@ import type Stripe from "stripe";
 
 vi.mock("./db", () => ({
   getBillingPlanById: vi.fn(),
+  getProductById: vi.fn(),
+  getLicenseByKey: vi.fn(),
   getStripePaymentByCheckoutSessionId: vi.fn(),
   getCustomerByEmail: vi.fn(),
+  getCustomerById: vi.fn(),
   createCustomer: vi.fn(),
   updateCustomer: vi.fn(),
   createLicense: vi.fn(),
@@ -31,6 +34,7 @@ vi.mock("./_core/env", () => ({
 }));
 
 const stripeRetrieveMock = vi.fn();
+const stripeSessionRetrieveMock = vi.fn();
 
 vi.mock("stripe", () => ({
   default: vi.fn().mockImplementation(() => ({
@@ -43,6 +47,7 @@ vi.mock("stripe", () => ({
     checkout: {
       sessions: {
         create: vi.fn(),
+        retrieve: stripeSessionRetrieveMock,
       },
     },
   })),
@@ -50,6 +55,7 @@ vi.mock("stripe", () => ({
 
 import * as db from "./db";
 import {
+  getCheckoutResult,
   handleCheckoutSessionCompleted,
   handleInvoicePaid,
   handleSubscriptionCanceled,
@@ -93,6 +99,7 @@ describe("handleCheckoutSessionCompleted", () => {
       productId: 2,
       name: "Annual",
       stripePriceId: "price_123",
+      billingModel: "subscription",
       licenseType: "subscription",
       maxActivations: 2,
       renewalPeriodDays: 365,
@@ -233,6 +240,7 @@ describe("handleInvoicePaid", () => {
       productId: 2,
       name: "Annual",
       stripePriceId: "price_123",
+      billingModel: "subscription",
       licenseType: "subscription",
       maxActivations: 1,
       renewalPeriodDays: 365,
@@ -253,6 +261,76 @@ describe("handleInvoicePaid", () => {
         expiresAt: new Date(1924992000 * 1000),
       })
     );
+  });
+});
+
+describe("getCheckoutResult", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns completed license immediately when payment is already fulfilled", async () => {
+    vi.mocked(db.getStripePaymentByCheckoutSessionId).mockResolvedValue({
+      id: 1,
+      billingPlanId: 5,
+      customerId: 9,
+      licenseKey: "AAAA-BBBB-CCCC-DDDD",
+      stripeCheckoutSessionId: "cs_test_1",
+      stripeSubscriptionId: null,
+      stripeCustomerId: "cus_123",
+      stripeInvoiceId: null,
+      amountTotal: 9900,
+      currency: "eur",
+      status: "completed",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    vi.mocked(db.getLicenseByKey).mockResolvedValue({
+      id: 1,
+      licenseKey: "AAAA-BBBB-CCCC-DDDD",
+      productId: 2,
+      customerId: 9,
+      stripeSubscriptionId: null,
+      type: "perpetual",
+      status: "active",
+      maxActivations: 1,
+      expiresAt: null,
+      metadata: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    vi.mocked(db.getBillingPlanById).mockResolvedValue({
+      id: 5,
+      productId: 2,
+      name: "Lifetime",
+      stripePriceId: "price_999",
+      billingModel: "one_time",
+      licenseType: "perpetual",
+      maxActivations: 1,
+      renewalPeriodDays: 365,
+      autoRenew: false,
+      features: null,
+      active: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    vi.mocked(db.getProductById).mockResolvedValue({
+      id: 2,
+      name: "Desktop App",
+      description: null,
+      require2FA: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const result = await getCheckoutResult({ sessionId: "cs_test_1" });
+
+    expect(result.readyToActivate).toBe(true);
+    expect(result.licenseKey).toBe("AAAA-BBBB-CCCC-DDDD");
+    expect(result.billingModel).toBe("one_time");
   });
 });
 

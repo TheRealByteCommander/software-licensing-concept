@@ -149,6 +149,7 @@ export const billingPlans = mysqlTable("billingPlans", {
   productId: int("productId").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   stripePriceId: varchar("stripePriceId", { length: 255 }).notNull().unique(),
+  billingModel: mysqlEnum("billingModel", ["subscription", "one_time"]).notNull().default("one_time"),
   licenseType: mysqlEnum("licenseType", [
     "subscription",
     "perpetual",

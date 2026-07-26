@@ -4,11 +4,14 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 import {
   createCheckoutSession,
+  getCheckoutResult,
   isStripeConfigured,
   parseBillingPlanFeatures,
   serializeBillingPlanFeatures,
 } from "./stripe";
 import { ENV } from "./_core/env";
+
+const billingModelSchema = z.enum(["subscription", "one_time"]);
 
 const licenseTypeSchema = z.enum([
   "subscription",
@@ -35,6 +38,7 @@ export const stripeRouter = router({
         name: plan.name,
         productId: plan.productId,
         productName: productNameById.get(plan.productId) ?? `Product #${plan.productId}`,
+        billingModel: plan.billingModel,
         licenseType: plan.licenseType,
         maxActivations: plan.maxActivations,
         renewalPeriodDays: plan.renewalPeriodDays,
@@ -62,6 +66,7 @@ export const stripeRouter = router({
           productId: z.number(),
           name: z.string().min(1),
           stripePriceId: z.string().min(1),
+          billingModel: billingModelSchema,
           licenseType: licenseTypeSchema,
           maxActivations: z.number().int().min(1).default(1),
           renewalPeriodDays: z.number().int().min(1).default(365),
@@ -87,6 +92,7 @@ export const stripeRouter = router({
           productId: input.productId,
           name: input.name,
           stripePriceId: input.stripePriceId,
+          billingModel: input.billingModel,
           licenseType: input.licenseType,
           maxActivations: input.maxActivations,
           renewalPeriodDays: input.renewalPeriodDays,
@@ -104,6 +110,7 @@ export const stripeRouter = router({
           id: z.number(),
           name: z.string().min(1).optional(),
           stripePriceId: z.string().min(1).optional(),
+          billingModel: billingModelSchema.optional(),
           licenseType: licenseTypeSchema.optional(),
           maxActivations: z.number().int().min(1).optional(),
           renewalPeriodDays: z.number().int().min(1).optional(),
@@ -169,5 +176,16 @@ export const stripeRouter = router({
     )
     .mutation(async ({ input }) => {
       return await createCheckoutSession(input);
+    }),
+
+  getCheckoutResult: publicProcedure
+    .input(
+      z.object({
+        sessionId: z.string().min(1),
+        email: z.string().email().optional(),
+      })
+    )
+    .query(async ({ input }) => {
+      return await getCheckoutResult(input);
     }),
 });
