@@ -1,0 +1,243 @@
+# Anleitung für Lizenz-Administratoren
+
+Diese Anleitung beschreibt den **tatsächlichen Stand** des Byte Commander License Servers (Admin-Portal + Backend). Sie richtet sich an Personen, die Produkte, Lizenzen und Aktivierungen verwalten.
+
+---
+
+## 1. Voraussetzungen
+
+| Voraussetzung | Details |
+|---|---|
+| Zugriff | URL des License Servers (z. B. `https://app.byte-commander.de`) |
+| Anmeldung | Manus OAuth **oder** lokaler Admin-Modus (Self-Hosting ohne OAuth) |
+| Rolle | Admin-Benutzer (Owner oder `role: admin`) |
+
+### Anmeldung (Produktion mit OAuth)
+
+1. Admin-Portal im Browser öffnen.
+2. Auf **Sign in** klicken.
+3. Mit dem konfigurierten OAuth-Konto anmelden.
+
+### Lokaler Admin-Modus (Entwicklung / Self-Hosting)
+
+Wenn **kein OAuth** konfiguriert ist (`OAUTH_SERVER_URL` / `VITE_APP_ID` fehlen) oder `LOCAL_AUTH_ENABLED=true` gesetzt ist, authentifiziert der Server Anfragen automatisch als lokaler Admin.
+
+Optional in `.env.local`:
+
+```env
+LOCAL_AUTH_ENABLED=true
+LOCAL_AUTH_OPEN_ID=local-admin
+LOCAL_AUTH_NAME=Local Admin
+LOCAL_AUTH_EMAIL=admin@localhost
+```
+
+---
+
+## 2. Navigation im Admin-Portal
+
+| Menüpunkt | Pfad | Funktion |
+|---|---|---|
+| Dashboard | `/` | Kennzahlen, letzte Aktivierungen, Lizenzstatus |
+| Products | `/products` | Software-Produkte verwalten |
+| Licenses | `/licenses` | Lizenzschlüssel erstellen und widerrufen |
+| Customers | `/customers` | Kundenstammdaten |
+| Activations | `/activations` | Geräte-Aktivierungen einsehen |
+
+---
+
+## 3. Standard-Workflow: Von Produkt bis Kundenlizenz
+
+```mermaid
+flowchart LR
+  A[Produkt anlegen] --> B[Optional: 2FA einrichten]
+  B --> C[Lizenz erstellen]
+  C --> D[Schlüssel an Kunden senden]
+  D --> E[Kunde aktiviert Software]
+  E --> F[Aktivierung im Portal prüfen]
+```
+
+### Schritt 1: Produkt anlegen
+
+1. **Products** → **Add Product**
+2. Felder ausfüllen:
+   - **Name** – z. B. `Meine Desktop-App`
+   - **Description** – Kurzbeschreibung (optional)
+3. **Create** klicken
+
+> Die Produkt-ID (interne Nummer) wird automatisch vergeben und wird für SDK-Integrationen benötigt.
+
+### Schritt 2: 2FA einrichten (optional, empfohlen für sensible Produkte)
+
+2FA gilt **nur für neue Geräte-Aktivierungen**, nicht für den täglichen Programmstart.
+
+1. **Products** → beim Produkt auf das **Shield-Symbol** klicken
+2. **Setup 2FA** klicken
+3. QR-Code mit **Google Authenticator** (oder kompatibler TOTP-App) scannen
+4. **Backup-Codes** sicher archivieren (Copy-Button)
+5. **Enable requirement** klicken – ab dann ist 2FA für Neueraktivierungen Pflicht
+
+| Status-Badge | Bedeutung |
+|---|---|
+| Not configured | Noch kein TOTP-Secret hinterlegt |
+| Configured | Secret/QR vorhanden |
+| Required for activation | 2FA ist für neue Aktivierungen aktiv |
+| Optional | 2FA eingerichtet, aber nicht erzwungen |
+
+**2FA deaktivieren:** Im gleichen Dialog **Disable requirement** (Secret bleibt gespeichert).
+
+### Schritt 3: Kunde anlegen (optional)
+
+1. **Customers** → **Add Customer**
+2. **Email** (Pflicht), **Name**, **Company** (optional)
+3. Speichern
+
+> Kunden können auch erst nachträglich zugeordnet werden. Die Lizenz-Erstellung im UI verknüpft derzeit **keinen** Kunden direkt – Zuordnung erfolgt über die API (`customerId`).
+
+### Schritt 4: Lizenz erstellen
+
+1. **Licenses** → **Create License**
+2. Felder setzen:
+
+| Feld | Beschreibung |
+|---|---|
+| **Product** | Zugehöriges Produkt |
+| **License Type** | Siehe Abschnitt 4 |
+| **Max Activations** | Max. gleichzeitige Geräte (Standard: 1) |
+| **Expiration Date** | Ablaufdatum (optional; leer = kein Datum) |
+
+3. **Create** → Lizenzschlüssel wird generiert (Format `XXXX-XXXX-XXXX-XXXX`)
+4. Schlüssel mit **Copy-Icon** kopieren
+
+### Schritt 5: Informationen an den Kunden senden
+
+Dem Software-Nutzer mitteilen:
+
+- **Lizenzschlüssel** (z. B. `ABCD-EFGH-IJKL-MNOP`)
+- **Server-URL** (z. B. `https://app.byte-commander.de`)
+- **Produkt-ID** (falls von der Software benötigt)
+- Hinweis auf **2FA**, falls für das Produkt aktiviert
+- Link zur [Software-Nutzer-Anleitung](./ANLEITUNG_SOFTWARENUTZER.md)
+
+### Schritt 6: Aktivierungen überwachen
+
+1. **Activations** – alle Geräte-Aktivierungen
+2. **Dashboard** – letzte 5 Aktivierungen und Statusverteilung
+
+---
+
+## 4. Lizenztypen – Auswahl und Konfiguration
+
+| Typ (UI/API) | Wann verwenden | Empfohlene Einstellungen |
+|---|---|---|
+| `subscription` | Zeitlich befristete Lizenzen | **Expiration Date** setzen |
+| `perpetual` | Einmalkauf ohne Ablauf | Kein Ablaufdatum |
+| `node_locked` | Gerätegebundene Software | **Max Activations = 1** (oder wenige) |
+| `user_based` | Mehrere Geräte pro Lizenz | **Max Activations > 1** |
+| `feature_based` | Feature-Tiers | Features über **Metadata** (API, siehe unten) |
+
+### Feature-Metadaten (nur über API)
+
+Für Feature-Lizenzen Metadata beim Erstellen setzen:
+
+```json
+{
+  "productId": 1,
+  "type": "feature_based",
+  "maxActivations": 1,
+  "expiresAt": "2026-12-31",
+  "metadata": "{\"features\":[\"basic\",\"pro\"],\"staleActivationDays\":30}"
+}
+```
+
+| Metadata-Feld | Wirkung |
+|---|---|
+| `features` | Liste freigeschalteter Features (im Validierungs-Token enthalten) |
+| `staleActivationDays` | Inaktive Geräte-Slots werden nach X Tagen ohne Validierung automatisch freigegeben |
+
+---
+
+## 5. Lizenzstatus
+
+| Status | Bedeutung | Aktion |
+|---|---|---|
+| `active` | Gültig, Aktivierung möglich | – |
+| `expired` | Ablaufdatum überschritten (automatisch) | Neue Lizenz oder Verlängerung |
+| `revoked` | Manuell gesperrt | **Revoke** in Licenses |
+| `grace_period` | Manuell gesetzter Kulanzstatus | Über API aktualisieren |
+
+**Lizenz widerrufen:** Licenses → **Revoke** (Bestätigung) → alle künftigen Validierungen schlagen fehl.
+
+---
+
+## 6. Typische Admin-Aufgaben
+
+### Geräte-Slot freimachen
+
+Option A: Kunde deaktiviert selbst (Software-Funktion oder Support-Anleitung).
+
+Option B: Lizenz widerrufen und neue Lizenz ausstellen.
+
+Option C: `staleActivationDays` in Metadata setzen – inaktive Slots werden bei nächster Neueraktivierung automatisch bereinigt.
+
+### 2FA-Secret verloren / neu einrichten
+
+1. Products → Shield → **Disable requirement**
+2. Erneut **Setup 2FA** (überschreibt Secret)
+3. Neuen QR-Code an internes Team verteilen
+4. **Enable requirement** wieder aktivieren
+
+> Bereits aktivierte Geräte sind **nicht** betroffen – 2FA gilt nur bei Neueraktivierung.
+
+### Produkt löschen
+
+Products → **Trash-Icon** → Bestätigen.
+
+> Nur möglich, wenn keine abhängigen Lizenzen existieren (Datenbank-Constraints beachten).
+
+---
+
+## 7. Umgebungsvariablen (Referenz)
+
+| Variable | Zweck |
+|---|---|
+| `DATABASE_URL` | MySQL/TiDB-Verbindung |
+| `JWT_SECRET` | Signatur für Session- und Lizenz-Tokens |
+| `VITE_APP_ID`, `OAUTH_SERVER_URL`, `VITE_OAUTH_PORTAL_URL` | OAuth-Login |
+| `OWNER_OPEN_ID` | Owner erhält automatisch Admin-Rolle |
+| `RATE_LIMIT_MAX_REQUESTS` | Rate Limit öffentlicher API (Standard: 120/Min.) |
+
+Details: [DEPLOYMENT.md](../DEPLOYMENT.md)
+
+---
+
+## 8. Bekannte Grenzen (Stand aktuell)
+
+| Bereich | Status |
+|---|---|
+| Lizenz bearbeiten im UI | Nur Erstellen + Widerrufen; Status/Ablauf über API |
+| Kunde bei Lizenz-Erstellung | UI-Feld fehlt – API `customerId` nutzen |
+| Feature-Metadata | UI-Feld fehlt – API `metadata` nutzen |
+| CSV-Export | Nicht implementiert |
+| Webhooks | Geplant, nicht verfügbar |
+| Automatische Abo-Verlängerung | Nicht implementiert – manuell neue Lizenz / Ablauf anpassen |
+
+---
+
+## 9. Checkliste vor Go-Live
+
+- [ ] `JWT_SECRET` gesetzt (min. 32 Zeichen, zufällig)
+- [ ] `DATABASE_URL` erreichbar, `pnpm db:push` ausgeführt
+- [ ] HTTPS aktiv (Reverse Proxy)
+- [ ] OAuth konfiguriert oder lokaler Admin-Modus bewusst gewählt
+- [ ] Erstes Produkt + Testlizenz erstellt
+- [ ] Testaktivierung mit SDK oder Kunden-Software erfolgreich
+- [ ] 2FA getestet (falls produktiv erforderlich)
+- [ ] Kunden-Anleitung versendet
+
+---
+
+## 10. Weiterführende Links
+
+- [Anleitung Software-Nutzer](./ANLEITUNG_SOFTWARENUTZER.md)
+- [Integration für Entwickler](../INTEGRATION_GUIDE.md)
+- [API-Dokumentation](../API_DOCUMENTATION.md)

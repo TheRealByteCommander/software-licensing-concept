@@ -177,7 +177,7 @@ client = LicenseClientWith2FA(
 )
 
 # Step 1: Initiate activation
-activation_result = client.initiate_activation()
+activation_result = client.initiate_activation_with_2fa()
 if activation_result['success']:
     activation_token = activation_result['activationToken']
     print(f"Activation initiated. Token: {activation_token}")

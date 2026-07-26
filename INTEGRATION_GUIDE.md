@@ -104,7 +104,12 @@ catch (LicensingApiException ex)
 
 ---
 
-## Production Checklist (quick)
+## End-user & admin guides
+
+- **Software users:** [docs/ANLEITUNG_SOFTWARENUTZER.md](../docs/ANLEITUNG_SOFTWARENUTZER.md)
+- **License admins:** [docs/ANLEITUNG_LIZENZADMIN.md](../docs/ANLEITUNG_LIZENZADMIN.md)
+
+---
 
 - Store license token securely (OS keychain/secure storage preferred)
 - Use stable `deviceId` generation

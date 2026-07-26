@@ -1,6 +1,6 @@
 # .NET License Client (HttpClient-based)
 
-Simple, dependency-light client for fast integration.
+Simple, dependency-light client for fast integration. Handles the tRPC **superjson** wire format automatically.
 
 ## Copy-paste usage
 

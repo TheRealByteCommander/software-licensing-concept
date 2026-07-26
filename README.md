@@ -4,6 +4,15 @@ Ein professionelles, flexibles und sicheres Software-Lizenzsystem mit 2FA-Authen
 
 **Offizielle Website:** [app.byte-commander.de](https://app.byte-commander.de)
 
+## Anleitungen
+
+| Zielgruppe | Dokument |
+|---|---|
+| **Lizenz-Administrator** | [docs/ANLEITUNG_LIZENZADMIN.md](docs/ANLEITUNG_LIZENZADMIN.md) |
+| **Software-Nutzer (Endanwender)** | [docs/ANLEITUNG_SOFTWARENUTZER.md](docs/ANLEITUNG_SOFTWARENUTZER.md) |
+| **Entwickler / Integration** | [INTEGRATION_GUIDE.md](INTEGRATION_GUIDE.md) |
+| **Dokumentations-Index** | [docs/README.md](docs/README.md) |
+
 ---
 
 ## 📋 Inhaltsverzeichnis
@@ -191,25 +200,27 @@ Der Server läuft dann unter `http://localhost:3000`
 
 ### 1. Produkt erstellen
 
-Melden Sie sich im Admin-Portal an und navigieren Sie zu **Produkte**:
+Melden Sie sich im Admin-Portal an und navigieren Sie zu **Products**:
 
 ```
-Dashboard → Produkte → Neues Produkt
+Products → Add Product
 - Name: "Meine Software"
-- Beschreibung: "Eine großartige Software"
-- 2FA erforderlich: ✓ (optional)
+- Description: "Eine großartige Software"
 ```
+
+Optional 2FA einrichten: **Products → Shield-Symbol → Setup 2FA → Enable requirement**
+(Vollständige Schritte: [docs/ANLEITUNG_LIZENZADMIN.md](docs/ANLEITUNG_LIZENZADMIN.md))
 
 ### 2. Lizenz generieren
 
-Navigieren Sie zu **Lizenzen** und erstellen Sie eine neue Lizenz:
+Navigieren Sie zu **Licenses** und erstellen Sie eine neue Lizenz:
 
 ```
-Dashboard → Lizenzen → Neue Lizenz
-- Produkt: "Meine Software"
-- Lizenztyp: "Abonnement"
-- Kunde: Wählen Sie einen Kunden
-- Ablaufdatum: 2025-12-31
+Licenses → Create License
+- Product: "Meine Software"
+- License Type: "Subscription"
+- Max Activations: 1
+- Expiration Date: 2026-12-31 (optional)
 ```
 
 ### 3. Lizenz aktivieren (Client-Seite)
@@ -242,68 +253,63 @@ if client.is_valid():
 Das System unterstützt mehrere flexible Lizenzmodelle:
 
 ### 1. **Abonnement (Subscription)**
-- **Beschreibung:** Zeitbasierte Lizenz mit automatischer Erneuerung
-- **Ablauf:** Endet nach festgelegtem Zeitraum (z.B. 1 Jahr)
-- **Erneuerung:** Automatisch oder manuell
+- **Beschreibung:** Zeitbasierte Lizenz mit Ablaufdatum
+- **Ablauf:** Über `expiresAt` / Expiration Date im Admin-Portal
+- **Erneuerung:** Manuell (neues Ablaufdatum oder neue Lizenz) – keine automatische Verlängerung im Server
 - **Ideal für:** SaaS-Produkte, Cloud-Services
 
 ```json
 {
   "type": "subscription",
-  "expiryDate": "2025-12-31",
-  "renewalDate": "2025-12-31",
-  "autoRenew": true
+  "expiresAt": "2026-12-31"
 }
 ```
 
 ### 2. **Perpetual (Unbefristet)**
-- **Beschreibung:** Lebenslange Lizenz ohne Ablaufdatum
-- **Ablauf:** Nie (kann manuell widerrufen werden)
+- **Beschreibung:** Lizenz ohne Ablaufdatum
+- **Ablauf:** Kein Lizenzablauf (JWT-Token für Offline-Nutzung max. 7 Tage gültig)
 - **Ideal für:** Desktop-Software, One-Time-Purchase
 
 ```json
 {
   "type": "perpetual",
-  "expiryDate": null
+  "expiresAt": null
 }
 ```
 
-### 3. **Device-Based (Gerätebasiert)**
-- **Beschreibung:** Lizenz ist an ein bestimmtes Gerät gebunden
-- **Aktivierungen:** Nur auf registriertem Gerät gültig
+### 3. **Node Locked (Gerätegebunden)**
+- **Beschreibung:** Lizenz ist an registrierte Geräte gebunden (`deviceId`)
+- **Aktivierungen:** Über `maxActivations` steuerbar (typisch: 1)
 - **Ideal für:** Hardware-gebundene Software, Workstations
 
 ```json
 {
-  "type": "device_based",
-  "deviceId": "device-uuid-12345",
-  "maxDevices": 1
+  "type": "node_locked",
+  "maxActivations": 1
 }
 ```
 
 ### 4. **User-Based (Benutzerbasiert)**
-- **Beschreibung:** Lizenz ist an einen Benutzer gebunden
-- **Aktivierungen:** Mehrere Geräte pro Benutzer möglich
+- **Beschreibung:** Mehrere Geräte pro Lizenzschlüssel möglich
+- **Aktivierungen:** Über `maxActivations` (> 1) steuerbar
 - **Ideal für:** Enterprise-Software, Team-Lizenzen
 
 ```json
 {
   "type": "user_based",
-  "userId": "user-id-12345",
-  "maxUsers": 5
+  "maxActivations": 5
 }
 ```
 
 ### 5. **Feature-Based (Funktionsbasiert)**
-- **Beschreibung:** Lizenz aktiviert bestimmte Features
-- **Features:** Granulare Kontrolle über Funktionalität
+- **Beschreibung:** Lizenz schaltet Features frei (über `metadata.features`)
+- **Features:** Werden im Validierungs-Token zurückgegeben – Auswertung in der Client-Software
 - **Ideal für:** Freemium-Modelle, Tiered Pricing
 
 ```json
 {
   "type": "feature_based",
-  "features": ["basic", "advanced", "premium"],
-  "expiryDate": "2025-12-31"
+  "metadata": "{\"features\":[\"basic\",\"advanced\",\"premium\"]}"
 }
 ```
 
@@ -697,7 +703,9 @@ except Exception as e:
 
 ## 🎨 Admin-Portal
 
-Das Admin-Portal bietet eine vollständige Verwaltungsoberfläche für das Lizenzsystem.
+Das Admin-Portal bietet eine Verwaltungsoberfläche für das Lizenzsystem.
+
+**Ausführliche Anleitung:** [docs/ANLEITUNG_LIZENZADMIN.md](docs/ANLEITUNG_LIZENZADMIN.md)
 
 ### Zugriff
 
@@ -705,81 +713,42 @@ Das Admin-Portal bietet eine vollständige Verwaltungsoberfläche für das Lizen
 https://your-license-server.com
 ```
 
-Melden Sie sich mit Ihrem Manus OAuth-Konto an.
+Melden Sie sich mit Manus OAuth an (oder nutzen Sie den lokalen Admin-Modus ohne OAuth).
+
+### Navigation
+
+| Bereich | Pfad |
+|---|---|
+| Dashboard | `/` |
+| Products | `/products` |
+| Licenses | `/licenses` |
+| Customers | `/customers` |
+| Activations | `/activations` |
 
 ### Dashboard
 
-Das Dashboard zeigt Echtzeit-Statistiken:
-- **Produkte:** Gesamtzahl der verwalteten Produkte
-- **Lizenzen:** Aktive und inaktive Lizenzen
-- **Kunden:** Registrierte Kunden
-- **Aktivierungen:** Aktive Geräte
-- **Aktivitätsverlauf:** Letzte Aktivierungen und Validierungen
+- Kennzahlen: Produkte, Lizenzen, Kunden, aktive Aktivierungen
+- Letzte Aktivierungen und Lizenzstatus-Verteilung
 
 ### Produktverwaltung
 
-**Neue Produkte erstellen:**
-1. Navigieren Sie zu **Produkte**
-2. Klicken Sie auf **Neues Produkt**
-3. Geben Sie ein:
-   - **Name:** Produktname
-   - **Beschreibung:** Kurze Beschreibung
-   - **2FA erforderlich:** Aktivieren Sie für 2FA-Schutz
-4. Klicken Sie auf **Erstellen**
-
-**Produkte bearbeiten:**
-1. Wählen Sie das Produkt aus der Liste
-2. Klicken Sie auf **Bearbeiten**
-3. Passen Sie die Einstellungen an
-4. Klicken Sie auf **Speichern**
+- **Erstellen/Bearbeiten/Löschen** von Produkten
+- **2FA:** Shield-Symbol → Setup, QR-Code, Enable/Disable
 
 ### Lizenzverwaltung
 
-**Neue Lizenzen erstellen:**
-1. Navigieren Sie zu **Lizenzen**
-2. Klicken Sie auf **Neue Lizenz**
-3. Wählen Sie:
-   - **Produkt:** Das Produkt für diese Lizenz
-   - **Lizenztyp:** Abonnement, Perpetual, Device-based, etc.
-   - **Kunde:** Der Lizenzinhaber
-   - **Ablaufdatum:** Wann die Lizenz abläuft
-4. Klicken Sie auf **Erstellen**
-
-**Lizenzen verwalten:**
-- **Anzeigen:** Alle Lizenzen mit Status und Details
-- **Bearbeiten:** Ablaufdatum, Kunde, Status ändern
-- **Widerrufen:** Lizenz deaktivieren
-- **Exportieren:** Lizenzliste als CSV exportieren
+- **Erstellen** mit Typ, Max Activations, optionalem Ablaufdatum
+- **Widerrufen** (Revoke)
+- Lizenzschlüssel kopieren
+- Status-/Metadata-Updates über API (UI: Erstellen + Widerrufen)
 
 ### Kundenverwaltung
 
-**Kunden anzeigen:**
-1. Navigieren Sie zu **Kunden**
-2. Sehen Sie alle registrierten Kunden mit:
-   - Kontaktinformationen
-   - Lizenzen
-   - Aktivierungsverlauf
-
-**Kundendetails:**
-- Klicken Sie auf einen Kunden, um Details zu sehen
-- Bearbeiten Sie Kontaktinformationen
-- Sehen Sie alle zugeordneten Lizenzen
+- Kunden anlegen und auflisten
 
 ### Aktivierungsverlauf
 
-**Aktivierungen überwachen:**
-1. Navigieren Sie zu **Aktivierungen**
-2. Sehen Sie alle Lizenzaktivierungen mit:
-   - Zeitstempel
-   - Geräteinformationen
-   - Benutzer
-   - Status
-
-**Aktivierungen filtern:**
-- Nach Produkt
-- Nach Datum
-- Nach Status
-- Nach Benutzer
+- Alle Geräte-Aktivierungen mit Zeitstempel und Geräte-ID
 
 ---
 
@@ -819,10 +788,7 @@ pnpm build
 
 #### Schritt 3: Umgebungsvariablen setzen
 
-```bash
-cp .env.example .env
-# Bearbeiten Sie .env mit Ihren Einstellungen
-```
+Erstellen Sie eine `.env.local` im Projektroot (siehe README → Konfiguration).
 
 #### Schritt 4: Datenbank initialisieren
 
