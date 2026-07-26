@@ -31,7 +31,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CreditCard, ExternalLink, Plus, Pencil, Trash2 } from "lucide-react";
+import { CreditCard, Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 const LICENSE_TYPES = [
@@ -42,10 +42,13 @@ const LICENSE_TYPES = [
   "feature_based",
 ] as const;
 
+const BILLING_MODELS = ["subscription", "one_time"] as const;
+
 type BillingPlanForm = {
   productId: string;
   name: string;
   stripePriceId: string;
+  billingModel: (typeof BILLING_MODELS)[number];
   licenseType: (typeof LICENSE_TYPES)[number];
   maxActivations: string;
   renewalPeriodDays: string;
@@ -58,7 +61,8 @@ const emptyPlanForm = (): BillingPlanForm => ({
   productId: "",
   name: "",
   stripePriceId: "",
-  licenseType: "subscription",
+  billingModel: "one_time",
+  licenseType: "perpetual",
   maxActivations: "1",
   renewalPeriodDays: "365",
   autoRenew: true,
@@ -117,6 +121,7 @@ export default function Billing() {
       productId: Number(form.productId),
       name: form.name.trim(),
       stripePriceId: form.stripePriceId.trim(),
+      billingModel: form.billingModel,
       licenseType: form.licenseType,
       maxActivations: Number(form.maxActivations) || 1,
       renewalPeriodDays: Number(form.renewalPeriodDays) || 365,
@@ -142,6 +147,7 @@ export default function Billing() {
       productId: String(plan.productId),
       name: plan.name,
       stripePriceId: plan.stripePriceId,
+      billingModel: plan.billingModel ?? "one_time",
       licenseType: plan.licenseType,
       maxActivations: String(plan.maxActivations ?? 1),
       renewalPeriodDays: String(plan.renewalPeriodDays ?? 365),
@@ -189,6 +195,30 @@ export default function Billing() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
+          <Label>Payment model</Label>
+          <Select
+            value={form.billingModel}
+            onValueChange={value => {
+              const billingModel = value as BillingPlanForm["billingModel"];
+              setForm({
+                ...form,
+                billingModel,
+                licenseType:
+                  billingModel === "subscription" ? "subscription" : form.licenseType,
+                autoRenew: billingModel === "subscription",
+              });
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="subscription">Subscription (recurring)</SelectItem>
+              <SelectItem value="one_time">One-time payment</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
           <Label>License type</Label>
           <Select
             value={form.licenseType}
@@ -230,10 +260,11 @@ export default function Billing() {
           />
         </div>
         <div className="flex items-center justify-between rounded-md border px-3 py-2">
-          <Label htmlFor="autoRenew">Auto renew</Label>
+          <Label htmlFor="autoRenew">Auto renew (subscriptions only)</Label>
           <Switch
             id="autoRenew"
             checked={form.autoRenew}
+            disabled={form.billingModel !== "subscription"}
             onCheckedChange={checked => setForm({ ...form, autoRenew: checked })}
           />
         </div>
@@ -329,8 +360,9 @@ export default function Billing() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Product</TableHead>
+                      <TableHead>Payment</TableHead>
                       <TableHead>Stripe Price</TableHead>
-                      <TableHead>Type</TableHead>
+                      <TableHead>License</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -340,6 +372,9 @@ export default function Billing() {
                       <TableRow key={plan.id}>
                         <TableCell className="font-medium">{plan.name}</TableCell>
                         <TableCell>{plan.productName}</TableCell>
+                        <TableCell>
+                          {plan.billingModel === "subscription" ? "Subscription" : "One-time"}
+                        </TableCell>
                         <TableCell className="font-mono text-xs">{plan.stripePriceId}</TableCell>
                         <TableCell>{plan.licenseType}</TableCell>
                         <TableCell>

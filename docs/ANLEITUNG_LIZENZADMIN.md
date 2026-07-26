@@ -228,6 +228,7 @@ Der License Server nutzt **Stripe Checkout** für den Verkauf von Lizenzen. Nach
 2. Umgebungsvariablen `STRIPE_SECRET_KEY` und `STRIPE_WEBHOOK_SECRET`
 3. Webhook in Stripe Dashboard auf `https://<ihr-server>/api/stripe/webhook` mit Events:
    - `checkout.session.completed`
+   - `checkout.session.async_payment_succeeded`
    - `invoice.paid`
    - `customer.subscription.deleted`
    - `customer.subscription.updated`
@@ -236,8 +237,40 @@ Der License Server nutzt **Stripe Checkout** für den Verkauf von Lizenzen. Nach
 
 1. **Billing** → **Add plan**
 2. Produkt, Plan-Name und **Stripe Price ID** (`price_…`) zuordnen
-3. Lizenztyp, Max Activations, Renewal Period und Features konfigurieren
-4. Plan aktiv lassen und speichern
+3. **Payment model** wählen:
+   - **Subscription** – wiederkehrendes Stripe-Abo (`mode: subscription`)
+   - **One-time payment** – Einmalzahlung (`mode: payment`)
+4. Lizenztyp, Max Activations, Renewal Period und Features konfigurieren
+5. Plan aktiv lassen und speichern
+
+> **Payment model** steuert den Stripe-Checkout-Modus. Der **Lizenztyp** beschreibt, wie die Lizenz in der Software gilt (z. B. `perpetual`, `subscription`, `feature_based`).
+
+### Sofort-Freischaltung nach Zahlung
+
+Nach dem Stripe-Redirect enthält die Success-URL `session_id={CHECKOUT_SESSION_ID}`. Die Software (oder `/checkout`) ruft unmittelbar:
+
+**`GET /api/trpc/stripe.getCheckoutResult?input={"json":{"sessionId":"cs_..."}}`**
+
+Antwort bei erfolgreicher Zahlung:
+
+```json
+{
+  "status": "completed",
+  "readyToActivate": true,
+  "licenseKey": "AAAA-BBBB-CCCC-DDDD",
+  "productId": 1,
+  "billingModel": "one_time",
+  "expiresAt": null
+}
+```
+
+Damit kann die Anwendung **sofort** `api.activate` aufrufen – ohne auf E-Mail oder manuelle Admin-Freigabe zu warten.
+
+Empfohlene Success-URL:
+
+```
+https://example.com/checkout?success=1&session_id={CHECKOUT_SESSION_ID}
+```
 
 ### Ablauf
 
@@ -253,6 +286,7 @@ flowchart LR
 | Stripe-Event | Server-Aktion |
 |---|---|
 | `checkout.session.completed` | Kunde anlegen/aktualisieren, Lizenzschlüssel generieren |
+| `checkout.session.async_payment_succeeded` | Wie oben (verzögerte Zahlungsmethoden) |
 | `invoice.paid` | Abonnement-Lizenz verlängern (`expiresAt`) |
 | `customer.subscription.deleted` | Lizenz widerrufen |
 | `customer.subscription.updated` | Bei Status `canceled`/`unpaid` Lizenz widerrufen |
@@ -270,7 +304,13 @@ flowchart LR
 }
 ```
 
-Antwort: `{ "sessionId": "cs_...", "url": "https://checkout.stripe.com/..." }`
+Antwort: `{ "sessionId": "cs_...", "url": "https://checkout.stripe.com/...", "billingModel": "one_time" }`
+
+**Lizenz sofort abrufen** (nach Redirect):
+
+`GET /api/trpc/stripe.getCheckoutResult?input={"json":{"sessionId":"cs_...","email":"kunde@example.com"}}`
+
+Optional `email` zur Absicherung. Bei `readyToActivate: true` ist `licenseKey` gültig und `api.activate` kann direkt folgen.
 
 ---
 

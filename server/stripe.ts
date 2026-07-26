@@ -37,8 +37,22 @@ export function serializeBillingPlanFeatures(features?: string[]): string | unde
   return JSON.stringify(features);
 }
 
+export type CheckoutResult = {
+  status: "pending" | "completed" | "failed";
+  readyToActivate: boolean;
+  sessionId: string;
+  licenseKey?: string;
+  productId?: number;
+  productName?: string;
+  licenseType?: BillingPlan["licenseType"];
+  billingModel?: BillingPlan["billingModel"];
+  expiresAt?: string | null;
+  features?: string[];
+  customerEmail?: string;
+};
+
 function getCheckoutMode(plan: BillingPlan): Stripe.Checkout.SessionCreateParams.Mode {
-  return plan.licenseType === "subscription" ? "subscription" : "payment";
+  return plan.billingModel === "subscription" ? "subscription" : "payment";
 }
 
 function computeInitialExpiry(plan: BillingPlan, periodEnd?: number | null): Date | undefined {
@@ -53,9 +67,81 @@ function computeInitialExpiry(plan: BillingPlan, periodEnd?: number | null): Dat
 function buildLicenseMetadataForPlan(plan: BillingPlan): string | undefined {
   return buildLicenseMetadata({
     features: parseBillingPlanFeatures(plan.features),
-    autoRenew: plan.licenseType === "subscription" ? plan.autoRenew : false,
+    autoRenew: plan.billingModel === "subscription" ? plan.autoRenew : false,
     renewalPeriodDays: plan.renewalPeriodDays ?? 365,
   });
+}
+
+async function buildCheckoutResult(input: {
+  sessionId: string;
+  licenseKey: string;
+  billingPlanId: number;
+  customerEmail?: string | null;
+}): Promise<CheckoutResult> {
+  const [license, plan, product] = await Promise.all([
+    db.getLicenseByKey(input.licenseKey),
+    db.getBillingPlanById(input.billingPlanId),
+    db.getLicenseByKey(input.licenseKey).then(async licenseRow => {
+      if (!licenseRow) return undefined;
+      return db.getProductById(licenseRow.productId);
+    }),
+  ]);
+
+  const metadata = parseBillingPlanFeatures(plan?.features);
+
+  return {
+    status: "completed",
+    readyToActivate: Boolean(license && license.status === "active"),
+    sessionId: input.sessionId,
+    licenseKey: input.licenseKey,
+    productId: license?.productId,
+    productName: product?.name,
+    licenseType: plan?.licenseType ?? license?.type,
+    billingModel: plan?.billingModel,
+    expiresAt: license?.expiresAt ? new Date(license.expiresAt).toISOString() : null,
+    features: metadata,
+    customerEmail: input.customerEmail ?? undefined,
+  };
+}
+
+function getSessionEmail(session: Stripe.Checkout.Session): string | undefined {
+  return session.customer_details?.email ?? session.customer_email ?? undefined;
+}
+
+function emailsMatch(a?: string | null, b?: string | null): boolean {
+  if (!a || !b) return true;
+  return a.toLowerCase() === b.toLowerCase();
+}
+
+async function verifyCheckoutAccess(input: {
+  sessionId: string;
+  email?: string;
+  customerId?: number | null;
+  session?: Stripe.Checkout.Session;
+}) {
+  if (!input.email) return;
+
+  if (input.customerId) {
+    const customer = await db.getCustomerById(input.customerId);
+    if (customer && !emailsMatch(customer.email, input.email)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Email does not match checkout session",
+      });
+    }
+    return;
+  }
+
+  const session =
+    input.session ??
+    (await getStripeClient()?.checkout.sessions.retrieve(input.sessionId));
+
+  if (session && !emailsMatch(getSessionEmail(session), input.email)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Email does not match checkout session",
+    });
+  }
 }
 
 async function upsertCustomerFromStripe(input: {
@@ -162,6 +248,91 @@ export async function createCheckoutSession(input: {
   return {
     sessionId: session.id,
     url: session.url,
+    billingModel: plan.billingModel,
+  };
+}
+
+export async function getCheckoutResult(input: {
+  sessionId: string;
+  email?: string;
+}): Promise<CheckoutResult> {
+  const existingPayment = await db.getStripePaymentByCheckoutSessionId(input.sessionId);
+
+  if (existingPayment?.licenseKey) {
+    await verifyCheckoutAccess({
+      sessionId: input.sessionId,
+      email: input.email,
+      customerId: existingPayment.customerId,
+    });
+
+    return buildCheckoutResult({
+      sessionId: input.sessionId,
+      licenseKey: existingPayment.licenseKey,
+      billingPlanId: existingPayment.billingPlanId,
+      customerEmail: input.email,
+    });
+  }
+
+  const stripe = getStripeClient();
+  if (!stripe) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Stripe is not configured",
+    });
+  }
+
+  const session = await stripe.checkout.sessions.retrieve(input.sessionId);
+  await verifyCheckoutAccess({
+    sessionId: input.sessionId,
+    email: input.email,
+    session,
+  });
+
+  if (session.payment_status === "unpaid") {
+    return {
+      status: "pending",
+      readyToActivate: false,
+      sessionId: input.sessionId,
+      customerEmail: getSessionEmail(session),
+    };
+  }
+
+  if (session.payment_status === "no_payment_required") {
+    return {
+      status: "pending",
+      readyToActivate: false,
+      sessionId: input.sessionId,
+      customerEmail: getSessionEmail(session),
+    };
+  }
+
+  if (session.status === "expired") {
+    return {
+      status: "failed",
+      readyToActivate: false,
+      sessionId: input.sessionId,
+      customerEmail: getSessionEmail(session),
+    };
+  }
+
+  if (session.payment_status === "paid") {
+    const fulfillment = await handleCheckoutSessionCompleted(session);
+    if (fulfillment.licenseKey) {
+      const payment = await db.getStripePaymentByCheckoutSessionId(input.sessionId);
+      return buildCheckoutResult({
+        sessionId: input.sessionId,
+        licenseKey: fulfillment.licenseKey,
+        billingPlanId: payment?.billingPlanId ?? Number(session.metadata?.billingPlanId),
+        customerEmail: getSessionEmail(session),
+      });
+    }
+  }
+
+  return {
+    status: "pending",
+    readyToActivate: false,
+    sessionId: input.sessionId,
+    customerEmail: getSessionEmail(session),
   };
 }
 
@@ -191,6 +362,7 @@ async function issueLicenseForPlan(input: {
     licenseKey,
     productId: input.plan.productId,
     customerId: input.customerId,
+    billingModel: input.plan.billingModel,
     source: "stripe",
   });
 
@@ -388,6 +560,7 @@ export async function processStripeWebhook(payload: Buffer, signature: string | 
 
   switch (event.type) {
     case "checkout.session.completed":
+    case "checkout.session.async_payment_succeeded":
       await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
       break;
     case "invoice.paid":

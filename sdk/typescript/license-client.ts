@@ -26,6 +26,38 @@ export type Initiate2FARequest = {
   deviceInfo?: string;
 };
 
+export type CheckoutResult = {
+  status: "pending" | "completed" | "failed";
+  readyToActivate: boolean;
+  sessionId: string;
+  licenseKey?: string;
+  productId?: number;
+  productName?: string;
+  licenseType?: LicenseType;
+  billingModel?: "subscription" | "one_time";
+  expiresAt?: string | null;
+  features?: string[];
+  customerEmail?: string;
+};
+
+export type CreateCheckoutSessionRequest = {
+  billingPlanId: number;
+  customerEmail: string;
+  successUrl: string;
+  cancelUrl: string;
+};
+
+export type CreateCheckoutSessionResponse = {
+  sessionId: string;
+  url: string | null;
+  billingModel: "subscription" | "one_time";
+};
+
+export type GetCheckoutResultRequest = {
+  sessionId: string;
+  email?: string;
+};
+
 export type Confirm2FARequest = {
   activationToken: string;
   totpCode: string;
@@ -154,6 +186,48 @@ export class LicenseClient {
 
   confirmActivation2FA(input: Confirm2FARequest): Promise<Confirm2FAResponse> {
     return this.call<Confirm2FAResponse>("/api/trpc/twoFA.confirmActivationWith2FA", input);
+  }
+
+  createCheckoutSession(input: CreateCheckoutSessionRequest): Promise<CreateCheckoutSessionResponse> {
+    return this.call<CreateCheckoutSessionResponse>("/api/trpc/stripe.createCheckoutSession", input);
+  }
+
+  getCheckoutResult(input: GetCheckoutResultRequest): Promise<CheckoutResult> {
+    return this.query<CheckoutResult>("/api/trpc/stripe.getCheckoutResult", input);
+  }
+
+  private async query<T>(path: string, input: Record<string, unknown>): Promise<T> {
+    const params = new URLSearchParams({
+      input: JSON.stringify({ json: input }),
+    });
+    const response = await this.fetchImpl(`${this.baseUrl}${path}?${params.toString()}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    let parsed: TrpcEnvelope<T> | null = null;
+    try {
+      parsed = (await response.json()) as TrpcEnvelope<T>;
+    } catch {
+      throw new LicensingApiError({ code: "BAD_RESPONSE", message: "Invalid JSON response" }, response.status);
+    }
+
+    if (!response.ok || parsed?.error) {
+      const payload = parsed?.error
+        ? unwrapErrorPayload(parsed.error)
+        : {
+            code: "HTTP_ERROR",
+            message: `HTTP ${response.status}`,
+          };
+      throw new LicensingApiError(payload, response.status);
+    }
+
+    const data = unwrapResultData(parsed?.result?.data);
+    if (!data) {
+      throw new LicensingApiError({ code: "BAD_RESPONSE", message: "Missing result.data payload" }, response.status);
+    }
+
+    return data;
   }
 
   private async call<T>(path: string, body: unknown): Promise<T> {

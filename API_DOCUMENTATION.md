@@ -343,6 +343,88 @@ Returns all activations for a specific license.
 
 ---
 
+### Stripe Checkout (Public)
+
+Supports **subscription** and **one-time payment** billing plans. After payment, licenses are issued immediately and can be activated without waiting for email delivery.
+
+#### List Public Billing Plans
+
+**Endpoint:** `GET /api/trpc/stripe.plans.listPublic`
+
+Returns active plans with `billingModel` (`subscription` | `one_time`).
+
+#### Create Checkout Session
+
+**Endpoint:** `POST /api/trpc/stripe.createCheckoutSession`
+
+**Request:**
+
+```json
+{
+  "json": {
+    "billingPlanId": 1,
+    "customerEmail": "customer@example.com",
+    "successUrl": "https://your-app.com/purchase?success=1&session_id={CHECKOUT_SESSION_ID}",
+    "cancelUrl": "https://your-app.com/purchase?canceled=1"
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "result": {
+    "data": {
+      "json": {
+        "sessionId": "cs_test_...",
+        "url": "https://checkout.stripe.com/...",
+        "billingModel": "subscription"
+      }
+    }
+  }
+}
+```
+
+Redirect the user to `url`. Use `{CHECKOUT_SESSION_ID}` in `successUrl` for immediate license retrieval.
+
+#### Get Checkout Result (Immediate Unlock)
+
+**Endpoint:** `GET /api/trpc/stripe.getCheckoutResult?input={"json":{"sessionId":"cs_test_..."}}`
+
+Poll until `readyToActivate` is `true`, then call `api.activate` with the returned `licenseKey`.
+
+**Response (completed):**
+
+```json
+{
+  "result": {
+    "data": {
+      "json": {
+        "status": "completed",
+        "readyToActivate": true,
+        "sessionId": "cs_test_...",
+        "licenseKey": "AAAA-BBBB-CCCC-DDDD",
+        "productId": 1,
+        "productName": "My App",
+        "licenseType": "perpetual",
+        "billingModel": "one_time",
+        "expiresAt": null,
+        "features": ["pro"]
+      }
+    }
+  }
+}
+```
+
+**Typical purchase + unlock flow:**
+
+1. `stripe.createCheckoutSession` → redirect to Stripe
+2. After redirect: `stripe.getCheckoutResult({ sessionId })`
+3. `api.activate({ licenseKey, deviceId })` → software unlocked
+
+---
+
 ## License Types
 
 The system supports the following license types:
