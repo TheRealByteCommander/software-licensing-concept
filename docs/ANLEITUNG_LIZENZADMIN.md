@@ -9,7 +9,7 @@ Diese Anleitung beschreibt den **tatsächlichen Stand** des Byte Commander Licen
 | Voraussetzung | Details |
 |---|---|
 | Zugriff | URL des License Servers (z. B. `https://app.byte-commander.de`) |
-| Anmeldung | Manus OAuth **oder** lokaler Admin-Modus (Self-Hosting ohne OAuth) |
+| Anmeldung | BC OAuth **oder** lokaler Admin-Modus (Self-Hosting ohne OAuth) |
 | Rolle | Admin-Benutzer (Owner oder `role: admin`) |
 
 ### Anmeldung (Produktion mit OAuth)

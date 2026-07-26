@@ -2,9 +2,9 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { defineConfig } from "vite";
-import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
+import { vitePluginManusRuntime as vitePluginBCRuntime } from "vite-plugin-manus-runtime";
 
-const plugins = [react(), tailwindcss(), vitePluginManusRuntime()];
+const plugins = [react(), tailwindcss(), vitePluginBCRuntime()];
 
 export default defineConfig({
   plugins,
@@ -25,11 +25,8 @@ export default defineConfig({
   server: {
     host: true,
     allowedHosts: [
-      ".manuspre.computer",
-      ".manus.computer",
-      ".manus-asia.computer",
-      ".manuscomputer.ai",
-      ".manusvm.computer",
+      ".byte-commander.de",
+      "app.byte-commander.de",
       "localhost",
       "127.0.0.1",
     ],

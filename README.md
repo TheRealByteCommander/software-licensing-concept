@@ -161,10 +161,10 @@ Erstellen Sie eine `.env.local` Datei im Root-Verzeichnis:
 # Datenbank
 DATABASE_URL=mysql://user:password@localhost:3306/license_db
 
-# OAuth (Manus)
+# OAuth (BC)
 VITE_APP_ID=your-app-id
-OAUTH_SERVER_URL=https://api.manus.im
-VITE_OAUTH_PORTAL_URL=https://auth.manus.im
+OAUTH_SERVER_URL=https://api.byte-commander.de
+VITE_OAUTH_PORTAL_URL=https://auth.byte-commander.de
 
 # Sicherheit
 JWT_SECRET=your-secret-key-min-32-chars
@@ -414,7 +414,7 @@ https://your-license-server.com/api/trpc/
 
 ### Authentifizierung
 
-- **Admin-Endpoints:** Manus OAuth erforderlich
+- **Admin-Endpoints:** BC OAuth erforderlich
 - **Public-Endpoints:** Keine Authentifizierung erforderlich
 
 ### Lizenzaktivierung
@@ -719,7 +719,7 @@ Das Admin-Portal bietet eine Verwaltungsoberfläche für das Lizenzsystem.
 https://your-license-server.com
 ```
 
-Melden Sie sich mit Manus OAuth an (oder nutzen Sie den lokalen Admin-Modus ohne OAuth).
+Melden Sie sich mit BC OAuth an (oder nutzen Sie den lokalen Admin-Modus ohne OAuth).
 
 ### Navigation
 
@@ -760,12 +760,12 @@ Melden Sie sich mit Manus OAuth an (oder nutzen Sie den lokalen Admin-Modus ohne
 
 ## 🚀 Deployment
 
-### Deployment auf Manus Platform
+### Deployment auf BC Platform
 
-Das System ist bereits für die Manus Platform konfiguriert.
+Das System ist bereits für die BC Platform konfiguriert.
 
 **Schritte:**
-1. Erstellen Sie einen Checkpoint in der Manus UI
+1. Erstellen Sie einen Checkpoint in der BC UI
 2. Klicken Sie auf **Publish**
 3. Wählen Sie Ihre Domain
 4. Das System wird automatisch deployed
@@ -875,9 +875,9 @@ sudo systemctl start license-server
 |----------|-------------|---------|
 | `DATABASE_URL` | MySQL-Verbindungsstring | `mysql://user:pass@localhost:3306/db` |
 | `JWT_SECRET` | Secret für JWT-Signing | `your-secret-key-min-32-chars` |
-| `VITE_APP_ID` | Manus OAuth App-ID | `app-id-12345` |
-| `OAUTH_SERVER_URL` | OAuth-Server URL | `https://api.manus.im` |
-| `VITE_OAUTH_PORTAL_URL` | OAuth-Portal URL | `https://auth.manus.im` |
+| `VITE_APP_ID` | BC OAuth App-ID | `app-id-12345` |
+| `OAUTH_SERVER_URL` | OAuth-Server URL | `https://api.byte-commander.de` |
+| `VITE_OAUTH_PORTAL_URL` | OAuth-Portal URL | `https://auth.byte-commander.de` |
 | `VITE_APP_TITLE` | Anwendungstitel | `Byte Commander License Server` |
 | `VITE_APP_LOGO` | Logo-URL | `https://domain.com/logo.png` |
 | `OWNER_NAME` | Besitzername | `Your Name` |
@@ -1136,7 +1136,7 @@ Dieses Projekt wurde mit modernen Technologien entwickelt:
 - **Drizzle ORM** - Datenbankzugriff
 - **Tailwind CSS** - Styling
 - **Speakeasy** - TOTP-Generierung
-- **Manus Platform** - Hosting und OAuth
+- **BC Platform** - Hosting und OAuth
 
 ---
 

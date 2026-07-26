@@ -60,7 +60,7 @@ https://your-license-server.com/api/trpc/
 
 ### Admin Endpoints
 
-Admin endpoints (product management, license management, customer management) require authentication via Manus OAuth. Users must be logged in to access these endpoints.
+Admin endpoints (product management, license management, customer management) require authentication via BC OAuth. Users must be logged in to access these endpoints.
 
 ### Public Endpoints
 

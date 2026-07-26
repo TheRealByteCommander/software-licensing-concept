@@ -12,13 +12,13 @@ This guide explains how to deploy the Byte Commander License Server to productio
 
 ## Environment Variables
 
-The following environment variables are automatically configured by the Manus platform:
+The following environment variables are automatically configured by the BC platform:
 
 - `DATABASE_URL`: MySQL/TiDB connection string
 - `JWT_SECRET`: Session cookie signing secret
-- `VITE_APP_ID`: Manus OAuth application ID
-- `OAUTH_SERVER_URL`: Manus OAuth backend base URL
-- `VITE_OAUTH_PORTAL_URL`: Manus login portal URL
+- `VITE_APP_ID`: BC OAuth application ID
+- `OAUTH_SERVER_URL`: BC OAuth backend base URL
+- `VITE_OAUTH_PORTAL_URL`: BC login portal URL
 - `OWNER_OPEN_ID`, `OWNER_NAME`: Owner's info
 - `VITE_APP_TITLE`: Application title (default: "Byte Commander License Server")
 - `VITE_APP_LOGO`: Logo image URL (Byte Commander logo)
@@ -89,9 +89,9 @@ server {
 }
 ```
 
-## Using Manus Platform Deployment
+## Using BC Platform Deployment
 
-The easiest way to deploy is using the Manus platform's built-in deployment:
+The easiest way to deploy is using the BC platform's built-in deployment:
 
 1. Save a checkpoint in the development environment
 2. Click the "Publish" button in the UI
