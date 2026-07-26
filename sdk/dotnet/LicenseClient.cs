@@ -1,6 +1,6 @@
 using System.Net.Http;
 using System.Net.Http.Json;
-using System.Text.Json.Serialization;
+using System.Text.Json;
 
 namespace ByteCommander.Licensing;
 
@@ -31,19 +31,52 @@ public sealed class LicenseClient
 
     private async Task<T> PostAsync<T>(string path, object payload, CancellationToken ct)
     {
-        using var response = await _http.PostAsJsonAsync(path, payload, ct);
-        var envelope = await response.Content.ReadFromJsonAsync<TrpcEnvelope<T>>(cancellationToken: ct);
+        using var response = await _http.PostAsJsonAsync(path, new { json = payload }, ct);
+        using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+        var root = doc.RootElement;
 
-        if (!response.IsSuccessStatusCode || envelope?.Error is not null)
+        if (root.TryGetProperty("error", out var errorElement))
         {
-            var err = envelope?.Error ?? new TrpcError("HTTP_ERROR", $"HTTP {(int)response.StatusCode}");
+            var err = ParseError(errorElement);
             throw new LicensingApiException(err.Code, err.Message, (int)response.StatusCode);
         }
 
-        if (envelope?.Result?.Data is null)
-            throw new LicensingApiException("BAD_RESPONSE", "Missing result.data", (int)response.StatusCode);
+        if (!response.IsSuccessStatusCode)
+            throw new LicensingApiException("HTTP_ERROR", $"HTTP {(int)response.StatusCode}", (int)response.StatusCode);
 
-        return envelope.Result.Data;
+        if (!root.TryGetProperty("result", out var resultElement) ||
+            !resultElement.TryGetProperty("data", out var dataElement))
+        {
+            throw new LicensingApiException("BAD_RESPONSE", "Missing result.data", (int)response.StatusCode);
+        }
+
+        var payloadElement = dataElement.TryGetProperty("json", out var jsonElement) ? jsonElement : dataElement;
+        var data = payloadElement.Deserialize<T>();
+        if (data is null)
+            throw new LicensingApiException("BAD_RESPONSE", "Missing result payload", (int)response.StatusCode);
+
+        return data;
+    }
+
+    private static (string Code, string Message) ParseError(JsonElement errorElement)
+    {
+        var payload = errorElement.TryGetProperty("json", out var jsonElement) ? jsonElement : errorElement;
+        var message = payload.TryGetProperty("message", out var messageElement)
+            ? messageElement.GetString() ?? "Licensing API error"
+            : "Licensing API error";
+
+        if (payload.TryGetProperty("data", out var dataElement) &&
+            dataElement.TryGetProperty("code", out var codeElement))
+        {
+            return (codeElement.GetString() ?? "UNKNOWN", message);
+        }
+
+        if (payload.TryGetProperty("code", out var topLevelCode))
+        {
+            return (topLevelCode.ToString(), message);
+        }
+
+        return ("UNKNOWN", message);
     }
 }
 
@@ -82,7 +115,3 @@ public record LicenseData(
     DateTimeOffset? ExpiresAt,
     List<string> Features
 );
-
-public sealed record TrpcEnvelope<T>(TrpcResult<T>? Result, TrpcError? Error);
-public sealed record TrpcResult<T>(T? Data);
-public sealed record TrpcError(string Code, string Message, object? Data = null);

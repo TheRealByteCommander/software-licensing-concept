@@ -22,12 +22,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Pencil, Trash2, Shield } from "lucide-react";
 import { toast } from "sonner";
+import ProductTwoFADialog from "@/components/ProductTwoFADialog";
 
 export default function Products() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [twoFAProduct, setTwoFAProduct] = useState<any>(null);
   const [formData, setFormData] = useState({ name: "", description: "" });
 
   const utils = trpc.useUtils();
@@ -119,6 +122,7 @@ export default function Products() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead>2FA</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -128,8 +132,23 @@ export default function Products() {
                   <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>{product.description || "—"}</TableCell>
+                    <TableCell>
+                      {product.require2FA ? (
+                        <Badge>Required</Badge>
+                      ) : (
+                        <Badge variant="outline">Off</Badge>
+                      )}
+                    </TableCell>
                     <TableCell>{new Date(product.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setTwoFAProduct(product)}
+                        title="Manage 2FA"
+                      >
+                        <Shield className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -228,6 +247,12 @@ export default function Products() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ProductTwoFADialog
+        product={twoFAProduct}
+        open={!!twoFAProduct}
+        onOpenChange={(open) => !open && setTwoFAProduct(null)}
+      />
     </div>
   );
 }

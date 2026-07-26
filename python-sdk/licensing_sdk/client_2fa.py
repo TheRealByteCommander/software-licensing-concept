@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Dict, Any
 
+from .trpc import raise_for_trpc_error, unwrap_result, wrap_input
+
 
 class LicenseClientWith2FA:
     """Client for license activation and validation with 2FA support"""
@@ -105,16 +107,17 @@ class LicenseClientWith2FA:
         try:
             response = requests.post(
                 f"{self.server_url}/api/trpc/twoFA.initiateActivation",
-                json={
+                json=wrap_input({
                     'licenseKey': key,
                     'deviceId': device_id,
                     'deviceInfo': device_info,
-                }
+                })
             )
             response.raise_for_status()
-            
+
             result = response.json()
-            data = result.get('result', {}).get('data', {})
+            raise_for_trpc_error(result, response.ok)
+            data = unwrap_result(result)
             
             if data.get('success'):
                 return {
@@ -148,15 +151,16 @@ class LicenseClientWith2FA:
         try:
             response = requests.post(
                 f"{self.server_url}/api/trpc/twoFA.confirmActivationWith2FA",
-                json={
+                json=wrap_input({
                     'activationToken': activation_token,
                     'totpCode': totp_code,
-                }
+                })
             )
             response.raise_for_status()
-            
+
             result = response.json()
-            data = result.get('result', {}).get('data', {})
+            raise_for_trpc_error(result, response.ok)
+            data = unwrap_result(result)
             
             if data.get('success'):
                 token = data['token']
@@ -227,15 +231,17 @@ class LicenseClientWith2FA:
         try:
             response = requests.post(
                 f"{self.server_url}/api/trpc/api.validate",
-                json={'token': self._token}
+                json=wrap_input({'token': self._token})
             )
             response.raise_for_status()
-            
+
             result = response.json()
-            return result.get('result', {}).get('data', {
+            raise_for_trpc_error(result, response.ok)
+            data = unwrap_result(result)
+            return data or {
                 'valid': False,
                 'message': 'Invalid response from server'
-            })
+            }
         except requests.RequestException as e:
             print(f"Online validation failed, trying offline: {e}")
             return self._validate_offline()

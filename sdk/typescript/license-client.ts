@@ -89,7 +89,38 @@ export class LicensingApiError extends Error {
   }
 }
 
-type TrpcEnvelope<T> = { result?: { data?: T }; error?: TrpcErrorPayload };
+type TrpcEnvelope<T> = {
+  result?: { data?: T | { json?: T } };
+  error?: TrpcErrorPayload | { json?: TrpcErrorPayload & { data?: { code?: string } } };
+};
+
+function unwrapResultData<T>(data: T | { json?: T } | undefined): T | undefined {
+  if (data && typeof data === "object" && "json" in data) {
+    return (data as { json?: T }).json;
+  }
+  return data as T | undefined;
+}
+
+function unwrapErrorPayload(error: TrpcEnvelope<unknown>["error"]): TrpcErrorPayload {
+  if (!error) {
+    return { code: "UNKNOWN", message: "Licensing API error" };
+  }
+
+  const payload = (
+    "json" in error && error.json ? error.json : error
+  ) as TrpcErrorPayload & { data?: { code?: string } | unknown };
+
+  const nestedCode =
+    payload.data && typeof payload.data === "object" && "code" in payload.data
+      ? String((payload.data as { code?: string }).code)
+      : undefined;
+
+  return {
+    code: nestedCode || String(payload.code ?? "UNKNOWN"),
+    message: payload.message || "Licensing API error",
+    data: payload.data,
+  };
+}
 
 export type LicenseClientOptions = {
   baseUrl: string;
@@ -129,7 +160,7 @@ export class LicenseClient {
     const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ json: body }),
     });
 
     let parsed: TrpcEnvelope<T> | null = null;
@@ -140,14 +171,16 @@ export class LicenseClient {
     }
 
     if (!response.ok || parsed?.error) {
-      const payload = parsed?.error ?? {
-        code: "HTTP_ERROR",
-        message: `HTTP ${response.status}`,
-      };
+      const payload = parsed?.error
+        ? unwrapErrorPayload(parsed.error)
+        : {
+            code: "HTTP_ERROR",
+            message: `HTTP ${response.status}`,
+          };
       throw new LicensingApiError(payload, response.status);
     }
 
-    const data = parsed?.result?.data;
+    const data = unwrapResultData(parsed?.result?.data);
     if (!data) {
       throw new LicensingApiError({ code: "BAD_RESPONSE", message: "Missing result.data payload" }, response.status);
     }

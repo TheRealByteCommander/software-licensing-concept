@@ -26,7 +26,12 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ActivateRequest'
+              allOf:
+                - $ref: '#/components/schemas/TRPCInputEnvelope'
+                - type: object
+                  properties:
+                    json:
+                      $ref: '#/components/schemas/ActivateRequest'
       responses:
         '200':
           description: Activation success
@@ -51,7 +56,12 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ValidateRequest'
+              allOf:
+                - $ref: '#/components/schemas/TRPCInputEnvelope'
+                - type: object
+                  properties:
+                    json:
+                      $ref: '#/components/schemas/ValidateRequest'
       responses:
         '200':
           description: Validation result
@@ -76,7 +86,12 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DeactivateRequest'
+              allOf:
+                - $ref: '#/components/schemas/TRPCInputEnvelope'
+                - type: object
+                  properties:
+                    json:
+                      $ref: '#/components/schemas/DeactivateRequest'
       responses:
         '200':
           description: Deactivation success
@@ -101,7 +116,12 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Initiate2FARequest'
+              allOf:
+                - $ref: '#/components/schemas/TRPCInputEnvelope'
+                - type: object
+                  properties:
+                    json:
+                      $ref: '#/components/schemas/Initiate2FARequest'
       responses:
         '200':
           description: 2FA activation initiation success
@@ -126,7 +146,12 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Confirm2FARequest'
+              allOf:
+                - $ref: '#/components/schemas/TRPCInputEnvelope'
+                - type: object
+                  properties:
+                    json:
+                      $ref: '#/components/schemas/Confirm2FARequest'
       responses:
         '200':
           description: 2FA confirmation success
@@ -152,8 +177,19 @@ components:
           required: [data]
           properties:
             data:
-              description: Procedure return payload
-              nullable: false
+              type: object
+              required: [json]
+              properties:
+                json:
+                  description: Procedure return payload (superjson wire format)
+                  nullable: false
+
+    TRPCInputEnvelope:
+      type: object
+      required: [json]
+      properties:
+        json:
+          description: Procedure input payload (superjson wire format)
 
     ErrorEnvelope:
       type: object
@@ -161,17 +197,27 @@ components:
       properties:
         error:
           type: object
-          required: [code, message]
+          required: [json]
           properties:
-            code:
-              type: string
-              description: tRPC error code (e.g., BAD_REQUEST, NOT_FOUND, FORBIDDEN)
-            message:
-              type: string
-            data:
+            json:
               type: object
-              nullable: true
-              additionalProperties: true
+              required: [message]
+              properties:
+                code:
+                  oneOf:
+                    - type: string
+                    - type: integer
+                  description: Transport-level tRPC code
+                message:
+                  type: string
+                data:
+                  type: object
+                  nullable: true
+                  properties:
+                    code:
+                      type: string
+                      description: Semantic error code (e.g., BAD_REQUEST, NOT_FOUND, FORBIDDEN)
+                  additionalProperties: true
 
     ActivateRequest:
       type: object
@@ -206,7 +252,10 @@ components:
               type: object
               properties:
                 data:
-                  $ref: '#/components/schemas/ActivateData'
+                  type: object
+                  properties:
+                    json:
+                      $ref: '#/components/schemas/ActivateData'
 
     ValidateRequest:
       type: object
@@ -261,7 +310,10 @@ components:
               type: object
               properties:
                 data:
-                  $ref: '#/components/schemas/ValidateData'
+                  type: object
+                  properties:
+                    json:
+                      $ref: '#/components/schemas/ValidateData'
 
     DeactivateRequest:
       type: object
@@ -291,7 +343,10 @@ components:
               type: object
               properties:
                 data:
-                  $ref: '#/components/schemas/DeactivateData'
+                  type: object
+                  properties:
+                    json:
+                      $ref: '#/components/schemas/DeactivateData'
 
     Initiate2FARequest:
       type: object
@@ -326,7 +381,10 @@ components:
               type: object
               properties:
                 data:
-                  $ref: '#/components/schemas/Initiate2FAData'
+                  type: object
+                  properties:
+                    json:
+                      $ref: '#/components/schemas/Initiate2FAData'
 
     Confirm2FARequest:
       type: object
@@ -360,4 +418,7 @@ components:
               type: object
               properties:
                 data:
-                  $ref: '#/components/schemas/Confirm2FAData'
+                  type: object
+                  properties:
+                    json:
+                      $ref: '#/components/schemas/Confirm2FAData'

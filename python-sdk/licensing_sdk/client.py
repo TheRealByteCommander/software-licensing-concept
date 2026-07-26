@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Dict, Any
 
+from .trpc import raise_for_trpc_error, unwrap_result, wrap_input
+
 
 class LicenseClient:
     """Client for license activation and validation"""
@@ -110,24 +112,26 @@ class LicenseClient:
         try:
             response = requests.post(
                 f"{self.server_url}/api/trpc/api.activate",
-                json={
+                json=wrap_input({
                     'licenseKey': key,
                     'deviceId': device_id,
                     'deviceInfo': device_info,
-                }
+                })
             )
             response.raise_for_status()
-            
+
             result = response.json()
-            if result.get('result', {}).get('data', {}).get('success'):
-                token = result['result']['data']['token']
+            raise_for_trpc_error(result, response.ok)
+            data = unwrap_result(result)
+            if data.get('success'):
+                token = data['token']
                 self._token = token
                 self._save_token(token)
                 self.license_key = key
                 return {
                     'success': True,
                     'token': token,
-                    'message': result['result']['data'].get('message', 'Activation successful')
+                    'message': data.get('message', 'Activation successful')
                 }
             else:
                 return {
@@ -167,15 +171,17 @@ class LicenseClient:
         try:
             response = requests.post(
                 f"{self.server_url}/api/trpc/api.validate",
-                json={'token': self._token}
+                json=wrap_input({'token': self._token})
             )
             response.raise_for_status()
-            
+
             result = response.json()
-            return result.get('result', {}).get('data', {
+            raise_for_trpc_error(result, response.ok)
+            data = unwrap_result(result)
+            return data or {
                 'valid': False,
                 'message': 'Invalid response from server'
-            })
+            }
         except requests.RequestException as e:
             # If online validation fails, try offline
             print(f"Online validation failed, trying offline: {e}")
@@ -227,23 +233,25 @@ class LicenseClient:
         try:
             response = requests.post(
                 f"{self.server_url}/api/trpc/api.deactivate",
-                json={
+                json=wrap_input({
                     'licenseKey': self.license_key,
                     'deviceId': device_id,
-                }
+                })
             )
             response.raise_for_status()
-            
+
             # Clear local token
             self._token = None
             if self._token_file.exists():
                 self._token_file.unlink()
-            
+
             result = response.json()
-            return result.get('result', {}).get('data', {
+            raise_for_trpc_error(result, response.ok)
+            data = unwrap_result(result)
+            return data or {
                 'success': False,
                 'message': 'Deactivation failed'
-            })
+            }
         except requests.RequestException as e:
             raise Exception(f"Deactivation request failed: {e}")
     
