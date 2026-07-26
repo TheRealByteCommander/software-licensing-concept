@@ -9,9 +9,11 @@ describe("LicenseClient", () => {
       json: async () => ({
         result: {
           data: {
-            success: true,
-            token: "jwt-token",
-            message: "Activation successful",
+            json: {
+              success: true,
+              token: "jwt-token",
+              message: "Activation successful",
+            },
           },
         },
       }),
@@ -27,6 +29,12 @@ describe("LicenseClient", () => {
     expect(result.success).toBe(true);
     expect(result.token).toBe("jwt-token");
     expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({
+      json: {
+        licenseKey: "AAAA-BBBB-CCCC-DDDD",
+        deviceId: "dev-1",
+      },
+    });
   });
 
   it("maps tRPC error envelopes to LicensingApiError", async () => {
@@ -35,8 +43,15 @@ describe("LicenseClient", () => {
       status: 403,
       json: async () => ({
         error: {
-          code: "FORBIDDEN",
-          message: "License is revoked",
+          json: {
+            code: -32003,
+            message: "License is revoked",
+            data: {
+              code: "FORBIDDEN",
+              httpStatus: 403,
+              path: "api.activate",
+            },
+          },
         },
       }),
     });

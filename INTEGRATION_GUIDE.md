@@ -12,6 +12,7 @@ Minimal copy-paste steps for production integration.
   - `POST /api/trpc/twoFA.initiateActivation`
   - `POST /api/trpc/twoFA.confirmActivationWith2FA`
 - Unified error contract: `error.code`, `error.message`, optional `error.data`
+- **Wire format:** The server uses tRPC with `superjson`. Send request bodies as `{"json": {...payload}}` and read successful payloads from `result.data.json` (SDKs handle this automatically).
 
 ---
 

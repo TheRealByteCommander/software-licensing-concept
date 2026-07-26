@@ -45,9 +45,9 @@
 - [x] Create 2FA setup endpoint (generate QR code)
 - [x] Create 2FA verification endpoint for activation
 - [x] Update activation flow to require 2FA confirmation
-- [ ] Update admin portal UI for 2FA management
+- [x] Update admin portal UI for 2FA management
 - [x] Update Python SDK to support 2FA activation
-- [ ] Test 2FA integration end-to-end
+- [x] Test 2FA integration end-to-end
 
 
 ## 2FA Refinement (Activation Only)
