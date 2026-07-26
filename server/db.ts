@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, products, licenses, activations, customers, twoFASecrets, activationTokens, InsertProduct, InsertLicense, InsertActivation, InsertCustomer, InsertTwoFASecret, InsertActivationToken } from "../drizzle/schema";
+import { InsertUser, users, products, licenses, activations, customers, twoFASecrets, activationTokens, webhooks, InsertProduct, InsertLicense, InsertActivation, InsertCustomer, InsertTwoFASecret, InsertActivationToken, InsertWebhook } from "../drizzle/schema";
 import { and, desc, isNull, eq } from "drizzle-orm";
 import { ENV } from './_core/env';
 
@@ -163,10 +163,36 @@ export async function createActivation(activation: InsertActivation) {
   return result;
 }
 
-export async function getAllActivations() {
+export async function getAllActivations(filters?: {
+  productId?: number;
+  status?: "active" | "deactivated" | "all";
+  licenseKey?: string;
+}) {
   const db = await getDb();
   if (!db) return [];
-  return await db.select().from(activations).orderBy(desc(activations.activatedAt));
+
+  let rows = await db.select().from(activations).orderBy(desc(activations.activatedAt));
+
+  if (filters?.licenseKey) {
+    rows = rows.filter(row => row.licenseKey === filters.licenseKey);
+  }
+
+  if (filters?.status === "active") {
+    rows = rows.filter(row => !row.deactivatedAt);
+  } else if (filters?.status === "deactivated") {
+    rows = rows.filter(row => !!row.deactivatedAt);
+  }
+
+  if (filters?.productId) {
+    const productLicenses = await db
+      .select({ licenseKey: licenses.licenseKey })
+      .from(licenses)
+      .where(eq(licenses.productId, filters.productId));
+    const keys = new Set(productLicenses.map(row => row.licenseKey));
+    rows = rows.filter(row => keys.has(row.licenseKey));
+  }
+
+  return rows;
 }
 
 export async function getActivationsByLicense(licenseKey: string) {
@@ -232,6 +258,70 @@ export async function getCustomerById(id: number) {
   if (!db) return undefined;
   const result = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getLicensesByCustomerId(customerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(licenses).where(eq(licenses.customerId, customerId));
+}
+
+export async function updateCustomer(id: number, data: Partial<InsertCustomer>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(customers).set(data).where(eq(customers.id, id));
+}
+
+// ========== Webhooks ==========
+export async function getAllWebhooks() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(webhooks).orderBy(desc(webhooks.createdAt));
+}
+
+export async function getWebhookById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(webhooks).where(eq(webhooks.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createWebhook(webhook: InsertWebhook) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(webhooks).values(webhook);
+  return result;
+}
+
+export async function updateWebhook(id: number, data: Partial<InsertWebhook>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(webhooks).set(data).where(eq(webhooks.id, id));
+}
+
+export async function deleteWebhook(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(webhooks).where(eq(webhooks.id, id));
+}
+
+export async function getActiveWebhooksForEvent(event: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const rows = await db
+    .select()
+    .from(webhooks)
+    .where(eq(webhooks.active, true));
+
+  return rows.filter(row => {
+    try {
+      const events = JSON.parse(row.events) as string[];
+      return Array.isArray(events) && events.includes(event);
+    } catch {
+      return false;
+    }
+  });
 }
 
 // ========== 2FA Secrets ==========

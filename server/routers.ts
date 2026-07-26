@@ -7,7 +7,10 @@ import * as db from "./db";
 import { generateLicenseKey, generateLicenseToken, verifyLicenseToken } from "./licenseUtils";
 import { TRPCError } from "@trpc/server";
 import { twoFARouter } from "./twoFARouter";
-import { isActivationStale, parseLicenseMetadata } from "./licensePolicy";
+import { webhooksRouter } from "./webhooksRouter";
+import { isActivationStale } from "./licensePolicy";
+import { prepareLicenseForUse, licensesToCsv } from "./licenseFlow";
+import { dispatchWebhookEvent } from "./webhooks";
 
 export const appRouter = router({
   system: systemRouter,
@@ -104,23 +107,60 @@ export const appRouter = router({
       .input(z.object({
         licenseKey: z.string(),
         status: z.enum(["active", "expired", "revoked", "grace_period"]).optional(),
-        expiresAt: z.string().optional(),
+        maxActivations: z.number().optional(),
+        customerId: z.number().nullable().optional(),
+        expiresAt: z.string().nullable().optional(),
         metadata: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
         const { licenseKey, ...data } = input;
-        const updateData: any = { ...data };
-        if (data.expiresAt) {
+        const updateData: Record<string, unknown> = {};
+
+        if (data.status !== undefined) updateData.status = data.status;
+        if (data.maxActivations !== undefined) updateData.maxActivations = data.maxActivations;
+        if (data.customerId !== undefined) updateData.customerId = data.customerId;
+        if (data.metadata !== undefined) updateData.metadata = data.metadata;
+
+        if (data.expiresAt === null) {
+          updateData.expiresAt = null;
+        } else if (data.expiresAt) {
           updateData.expiresAt = new Date(data.expiresAt);
         }
+
         await db.updateLicense(licenseKey, updateData);
         return { success: true };
       }),
+
+    exportCsv: protectedProcedure.query(async () => {
+      const [licenseRows, productRows, customerRows] = await Promise.all([
+        db.getAllLicenses(),
+        db.getAllProducts(),
+        db.getAllCustomers(),
+      ]);
+
+      const productNameById = new Map(productRows.map(product => [product.id, product.name]));
+      const customerLabelById = new Map(
+        customerRows.map(customer => [
+          customer.id,
+          customer.name ? `${customer.name} <${customer.email}>` : customer.email,
+        ])
+      );
+
+      const csv = licensesToCsv(licenseRows, productNameById, customerLabelById);
+      const filename = `licenses-${new Date().toISOString().slice(0, 10)}.csv`;
+
+      return { csv, filename };
+    }),
     
     revoke: protectedProcedure
       .input(z.object({ licenseKey: z.string() }))
       .mutation(async ({ input }) => {
+        const license = await db.getLicenseByKey(input.licenseKey);
         await db.revokeLicense(input.licenseKey);
+        void dispatchWebhookEvent("license.revoked", {
+          licenseKey: input.licenseKey,
+          productId: license?.productId,
+        });
         return { success: true };
       }),
   }),
@@ -134,42 +174,21 @@ export const appRouter = router({
         deviceInfo: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
-        // Get license
-        const license = await db.getLicenseByKey(input.licenseKey);
-        if (!license) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "License not found" });
-        }
+        const { license, metadata } = await prepareLicenseForUse(input.licenseKey);
 
-        // Get product to check if 2FA is required
         const product = await db.getProductById(license.productId);
         if (!product) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Product not found" });
         }
 
-        // Check license status
-        if (license.status !== "active") {
-          throw new TRPCError({ code: "FORBIDDEN", message: `License is ${license.status}` });
-        }
-
-        // Check expiration
-        if (license.expiresAt && new Date(license.expiresAt) < new Date()) {
-          await db.updateLicense(input.licenseKey, { status: "expired" });
-          throw new TRPCError({ code: "FORBIDDEN", message: "License has expired" });
-        }
-
-        const metadata = parseLicenseMetadata(license.metadata);
-
-        // Check if already activated on this device
         const existingActivation = await db.getActivationByDeviceAndLicense(
           input.licenseKey,
           input.deviceId
         );
 
         if (existingActivation) {
-          // Update validation timestamp
           await db.updateActivationValidation(existingActivation.id);
 
-          // Generate token
           const token = generateLicenseToken({
             licenseKey: input.licenseKey,
             productId: license.productId,
@@ -181,7 +200,6 @@ export const appRouter = router({
           return { success: true, token, message: "Already activated" };
         }
 
-        // NEW ACTIVATION - Check if 2FA is required
         if (product.require2FA) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -189,7 +207,6 @@ export const appRouter = router({
           });
         }
 
-        // Check activation limit (with optional stale-seat reclaim)
         let activeActivations = await db.getActivationsByLicense(input.licenseKey);
 
         if (metadata.staleActivationDays && metadata.staleActivationDays > 0) {
@@ -210,20 +227,24 @@ export const appRouter = router({
           });
         }
 
-        // Create new activation
         await db.createActivation({
           licenseKey: input.licenseKey,
           deviceId: input.deviceId,
           deviceInfo: input.deviceInfo,
         });
 
-        // Generate token
         const token = generateLicenseToken({
           licenseKey: input.licenseKey,
           productId: license.productId,
           deviceId: input.deviceId,
           expiresAt: license.expiresAt,
           features: metadata.features ?? [],
+        });
+
+        void dispatchWebhookEvent("license.activated", {
+          licenseKey: input.licenseKey,
+          productId: license.productId,
+          deviceId: input.deviceId,
         });
 
         return { success: true, token, message: "Activation successful" };
@@ -235,27 +256,9 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         try {
-          // Verify token signature and expiration
           const decoded = verifyLicenseToken(input.token);
+          const { license, metadata } = await prepareLicenseForUse(decoded.licenseKey);
 
-          // Get license from database
-          const license = await db.getLicenseByKey(decoded.licenseKey);
-          if (!license) {
-            throw new TRPCError({ code: "NOT_FOUND", message: "License not found" });
-          }
-
-          // Check license status
-          if (license.status !== "active") {
-            return { valid: false, message: `License is ${license.status}` };
-          }
-
-          // Check expiration
-          if (license.expiresAt && new Date(license.expiresAt) < new Date()) {
-            await db.updateLicense(decoded.licenseKey, { status: "expired" });
-            return { valid: false, message: "License has expired" };
-          }
-
-          // Enforce active device binding: token is only valid for an active activation.
           const activation = await db.getActivationByDeviceAndLicense(
             decoded.licenseKey,
             decoded.deviceId
@@ -265,8 +268,6 @@ export const appRouter = router({
           }
 
           await db.updateActivationValidation(activation.id);
-
-          const metadata = parseLicenseMetadata(license.metadata);
 
           return {
             valid: true,
@@ -278,6 +279,9 @@ export const appRouter = router({
             },
           };
         } catch (error) {
+          if (error instanceof TRPCError) {
+            return { valid: false, message: error.message };
+          }
           return { valid: false, message: "Invalid or expired token" };
         }
       }),
@@ -298,15 +302,31 @@ export const appRouter = router({
         }
 
         await db.deactivateActivation(activation.id);
+
+        void dispatchWebhookEvent("license.deactivated", {
+          licenseKey: input.licenseKey,
+          deviceId: input.deviceId,
+        });
+
         return { success: true, message: "Deactivation successful" };
       }),
   }),
 
   // Activations Management
   activations: router({
-    list: protectedProcedure.query(async () => {
-      return await db.getAllActivations();
-    }),
+    list: protectedProcedure
+      .input(
+        z
+          .object({
+            productId: z.number().optional(),
+            status: z.enum(["active", "deactivated", "all"]).optional(),
+            licenseKey: z.string().optional(),
+          })
+          .optional()
+      )
+      .query(async ({ input }) => {
+        return await db.getAllActivations(input ?? undefined);
+      }),
     
     byLicense: protectedProcedure
       .input(z.object({ licenseKey: z.string() }))
@@ -326,6 +346,12 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return await db.getCustomerById(input.id);
       }),
+
+    licenses: protectedProcedure
+      .input(z.object({ customerId: z.number() }))
+      .query(async ({ input }) => {
+        return await db.getLicensesByCustomerId(input.customerId);
+      }),
     
     create: protectedProcedure
       .input(z.object({
@@ -344,6 +370,7 @@ export const appRouter = router({
       }),
   }),
   twoFA: twoFARouter,
+  webhooks: webhooksRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -10,6 +10,7 @@ import Products from "./pages/Products";
 import Licenses from "./pages/Licenses";
 import Customers from "./pages/Customers";
 import Activations from "./pages/Activations";
+import Webhooks from "./pages/Webhooks";
 
 function Router() {
   return (
@@ -37,6 +38,11 @@ function Router() {
       <Route path={"/activations"}>
         <DashboardLayout>
           <Activations />
+        </DashboardLayout>
+      </Route>
+      <Route path={"/webhooks"}>
+        <DashboardLayout>
+          <Webhooks />
         </DashboardLayout>
       </Route>
       <Route path={"/404"} component={NotFound} />
