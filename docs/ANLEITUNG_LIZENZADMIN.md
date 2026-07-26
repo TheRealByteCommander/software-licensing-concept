@@ -42,6 +42,10 @@ LOCAL_AUTH_EMAIL=admin@localhost
 | Licenses | `/licenses` | Lizenzschlüssel erstellen und widerrufen |
 | Customers | `/customers` | Kundenstammdaten |
 | Activations | `/activations` | Geräte-Aktivierungen einsehen |
+| Webhooks | `/webhooks` | Outbound Event-Benachrichtigungen |
+| Billing | `/billing` | Stripe-Pläne und Zahlungshistorie |
+
+Öffentliche Checkout-Seite für Endkunden: `/checkout`
 
 ---
 
@@ -205,17 +209,78 @@ Products → **Trash-Icon** → Bestätigen.
 | `VITE_APP_ID`, `OAUTH_SERVER_URL`, `VITE_OAUTH_PORTAL_URL` | OAuth-Login |
 | `OWNER_OPEN_ID` | Owner erhält automatisch Admin-Rolle |
 | `RATE_LIMIT_MAX_REQUESTS` | Rate Limit öffentlicher API (Standard: 120/Min.) |
+| `STRIPE_SECRET_KEY` | Stripe Secret Key (sk_live_… / sk_test_…) |
+| `STRIPE_WEBHOOK_SECRET` | Signing Secret für `/api/stripe/webhook` |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | Optional: Publishable Key für Frontend |
+| `APP_BASE_URL` | Optional: Basis-URL für Checkout-Redirects |
 
 Details: [DEPLOYMENT.md](../DEPLOYMENT.md)
 
 ---
 
-## 8. Webhooks (externe Integration)
+## 8. Stripe-Zahlungen
+
+Der License Server nutzt **Stripe Checkout** für den Verkauf von Lizenzen. Nach erfolgreicher Zahlung werden Kunde und Lizenz automatisch angelegt.
+
+### Voraussetzungen
+
+1. Stripe-Konto mit angelegten **Products** und **Prices**
+2. Umgebungsvariablen `STRIPE_SECRET_KEY` und `STRIPE_WEBHOOK_SECRET`
+3. Webhook in Stripe Dashboard auf `https://<ihr-server>/api/stripe/webhook` mit Events:
+   - `checkout.session.completed`
+   - `invoice.paid`
+   - `customer.subscription.deleted`
+   - `customer.subscription.updated`
+
+### Billing-Plan anlegen
+
+1. **Billing** → **Add plan**
+2. Produkt, Plan-Name und **Stripe Price ID** (`price_…`) zuordnen
+3. Lizenztyp, Max Activations, Renewal Period und Features konfigurieren
+4. Plan aktiv lassen und speichern
+
+### Ablauf
+
+```mermaid
+flowchart LR
+  A[Kunde öffnet /checkout] --> B[Stripe Checkout]
+  B --> C[Webhook checkout.session.completed]
+  C --> D[Kunde + Lizenz angelegt]
+  D --> E[Abonnement: invoice.paid verlängert]
+  E --> F[Kündigung: subscription.deleted widerruft Lizenz]
+```
+
+| Stripe-Event | Server-Aktion |
+|---|---|
+| `checkout.session.completed` | Kunde anlegen/aktualisieren, Lizenzschlüssel generieren |
+| `invoice.paid` | Abonnement-Lizenz verlängern (`expiresAt`) |
+| `customer.subscription.deleted` | Lizenz widerrufen |
+| `customer.subscription.updated` | Bei Status `canceled`/`unpaid` Lizenz widerrufen |
+
+### Öffentliche API
+
+`tRPC stripe.createCheckoutSession` (öffentlich):
+
+```json
+{
+  "billingPlanId": 1,
+  "customerEmail": "kunde@example.com",
+  "successUrl": "https://example.com/checkout?success=1",
+  "cancelUrl": "https://example.com/checkout?canceled=1"
+}
+```
+
+Antwort: `{ "sessionId": "cs_...", "url": "https://checkout.stripe.com/..." }`
+
+---
+
+## 9. Webhooks (externe Integration)
 
 Unter **Webhooks** (`/webhooks`) können HTTP-Endpunkte für Lizenz-Ereignisse registriert werden:
 
 | Event | Auslöser |
 |---|---|
+| `license.created` | Neue Lizenz (z. B. nach Stripe-Checkout) |
 | `license.activated` | Neue Geräte-Aktivierung (inkl. 2FA) |
 | `license.deactivated` | Gerät deaktiviert |
 | `license.revoked` | Lizenz widerrufen |
@@ -236,7 +301,7 @@ Bei gesetztem Secret wird `X-License-Signature` als HMAC-SHA256 über den JSON-B
 
 ---
 
-## 9. Auto-Renewal (Abonnements)
+## 10. Auto-Renewal (Abonnements)
 
 Für Lizenztyp **Subscription** kann im Lizenz-Dialog **Auto-Renew Subscription** aktiviert werden.
 
@@ -246,19 +311,19 @@ Für Lizenztyp **Subscription** kann im Lizenz-Dialog **Auto-Renew Subscription*
 
 ---
 
-## 10. CSV-Export
+## 11. CSV-Export
 
 Auf der Seite **Licenses** → **Export CSV** lädt die aktuelle Lizenzliste als CSV herunter (inkl. Metadata-Spalte).
 
 ---
 
-## 11. Aktivierungsfilter
+## 12. Aktivierungsfilter
 
 Unter **Activations** können Einträge nach Produkt, Status (Active/Deactivated) und Lizenzschlüssel gefiltert werden.
 
 ---
 
-## 12. Hinweise
+## 13. Hinweise
 
 | Bereich | Verhalten |
 |---|---|
@@ -268,7 +333,7 @@ Unter **Activations** können Einträge nach Produkt, Status (Active/Deactivated
 
 ---
 
-## 13. Checkliste vor Go-Live
+## 14. Checkliste vor Go-Live
 
 - [ ] `JWT_SECRET` gesetzt (min. 32 Zeichen, zufällig)
 - [ ] `DATABASE_URL` erreichbar, `pnpm db:push` ausgeführt
@@ -277,12 +342,13 @@ Unter **Activations** können Einträge nach Produkt, Status (Active/Deactivated
 - [ ] Erstes Produkt + Testlizenz erstellt
 - [ ] Testaktivierung mit SDK oder Kunden-Software erfolgreich
 - [ ] 2FA getestet (falls produktiv erforderlich)
+- [ ] Stripe Webhook + Test-Checkout (falls Zahlungsverkauf aktiv)
 - [ ] Webhooks konfiguriert (falls CRM/Billing-Anbindung benötigt)
 - [ ] Kunden-Anleitung versendet
 
 ---
 
-## 14. Weiterführende Links
+## 15. Weiterführende Links
 
 - [Anleitung Software-Nutzer](./ANLEITUNG_SOFTWARENUTZER.md)
 - [Integration für Entwickler](../INTEGRATION_GUIDE.md)

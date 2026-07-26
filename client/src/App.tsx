@@ -11,6 +11,8 @@ import Licenses from "./pages/Licenses";
 import Customers from "./pages/Customers";
 import Activations from "./pages/Activations";
 import Webhooks from "./pages/Webhooks";
+import Billing from "./pages/Billing";
+import Checkout from "./pages/Checkout";
 
 function Router() {
   return (
@@ -45,6 +47,12 @@ function Router() {
           <Webhooks />
         </DashboardLayout>
       </Route>
+      <Route path={"/billing"}>
+        <DashboardLayout>
+          <Billing />
+        </DashboardLayout>
+      </Route>
+      <Route path={"/checkout"} component={Checkout} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

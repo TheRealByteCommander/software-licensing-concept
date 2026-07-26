@@ -60,6 +60,7 @@ export function isPublicApiPath(path: string): boolean {
     path.startsWith("/api.validate") ||
     path.startsWith("/api.deactivate") ||
     path.startsWith("/twoFA.initiateActivation") ||
-    path.startsWith("/twoFA.confirmActivation")
+    path.startsWith("/twoFA.confirmActivation") ||
+    path.startsWith("/stripe.createCheckoutSession")
   );
 }
