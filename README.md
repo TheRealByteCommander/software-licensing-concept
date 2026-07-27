@@ -2,7 +2,7 @@
 
 Ein professionelles, flexibles und sicheres Software-Lizenzsystem mit 2FA-Authentifizierung, Admin-Portal und Python SDK für die Integration in bestehende Anwendungen.
 
-**Offizielle Website:** [app.byte-commander.de](https://app.byte-commander.de)
+**Offizielle Website:** Ihre Server-URL
 
 ## Anleitungen
 
@@ -143,7 +143,7 @@ Das **Byte Commander License Server** ist ein umfassendes Lizenzverwaltungssyste
 ### Repository klonen
 
 ```bash
-git clone https://github.com/TheRealByteCommander/software-licensing-concept.git
+git clone <repository-url>
 cd software-licensing-concept
 ```
 
@@ -163,15 +163,15 @@ DATABASE_URL=mysql://user:password@localhost:3306/license_db
 
 # OAuth (BC)
 VITE_APP_ID=your-app-id
-OAUTH_SERVER_URL=https://api.byte-commander.de
-VITE_OAUTH_PORTAL_URL=https://auth.byte-commander.de
+OAUTH_SERVER_URL=<oauth-api-url>
+VITE_OAUTH_PORTAL_URL=<oauth-portal-url>
 
 # Sicherheit
 JWT_SECRET=your-secret-key-min-32-chars
 
 # Anwendung
 VITE_APP_TITLE=Byte Commander License Server
-VITE_APP_LOGO=https://your-domain.com/logo.png
+VITE_APP_LOGO=<ihre-domain>/logo.png
 
 # Owner
 OWNER_NAME=Your Name
@@ -181,7 +181,7 @@ OWNER_OPEN_ID=your-open-id
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
-APP_BASE_URL=https://your-domain.com
+APP_BASE_URL=<ihre-domain>
 ```
 
 ### Datenbank initialisieren
@@ -237,7 +237,7 @@ Mit dem Python SDK:
 from licensing_sdk import LicenseClient
 
 client = LicenseClient(
-    server_url="https://your-license-server.com",
+    server_url="<license-server-url>",
     product_id=1,
     license_key="XXXX-XXXX-XXXX-XXXX"
 )
@@ -369,7 +369,7 @@ Dashboard → Produkte → [Produkt bearbeiten]
 from licensing_sdk import LicenseClientWith2FA
 
 client = LicenseClientWith2FA(
-    server_url="https://your-license-server.com",
+    server_url="<license-server-url>",
     product_id=1,
     license_key="XXXX-XXXX-XXXX-XXXX"
 )
@@ -409,7 +409,7 @@ if activation_result['success']:
 ### Base URL
 
 ```
-https://your-license-server.com/api/trpc/
+<license-server-url>/api/trpc/
 ```
 
 ### Authentifizierung
@@ -601,7 +601,7 @@ from licensing_sdk import LicenseClient
 
 # Client initialisieren
 client = LicenseClient(
-    server_url="https://your-license-server.com",
+    server_url="<license-server-url>",
     product_id=1,
     license_key="XXXX-XXXX-XXXX-XXXX"
 )
@@ -633,7 +633,7 @@ if client.is_valid(online=False):
 from licensing_sdk import LicenseClientWith2FA
 
 client = LicenseClientWith2FA(
-    server_url="https://your-license-server.com",
+    server_url="<license-server-url>",
     product_id=1,
     license_key="XXXX-XXXX-XXXX-XXXX"
 )
@@ -665,7 +665,7 @@ if activation_result['success']:
 ```python
 # Benutzerdefinierte Geräte-ID
 client = LicenseClient(
-    server_url="https://your-license-server.com",
+    server_url="<license-server-url>",
     product_id=1,
     license_key="XXXX-XXXX-XXXX-XXXX",
     device_id="custom-device-id"  # Standard: Auto-generiert
@@ -688,7 +688,7 @@ from licensing_sdk import LicenseClient, LicenseError
 
 try:
     client = LicenseClient(
-        server_url="https://your-license-server.com",
+        server_url="<license-server-url>",
         product_id=1,
         license_key="XXXX-XXXX-XXXX-XXXX"
     )
@@ -716,7 +716,7 @@ Das Admin-Portal bietet eine Verwaltungsoberfläche für das Lizenzsystem.
 ### Zugriff
 
 ```
-https://your-license-server.com
+<license-server-url>
 ```
 
 Melden Sie sich mit BC OAuth an (oder nutzen Sie den lokalen Admin-Modus ohne OAuth).
@@ -781,7 +781,7 @@ Das System ist bereits für die BC Platform konfiguriert.
 #### Schritt 1: Repository klonen
 
 ```bash
-git clone https://github.com/TheRealByteCommander/software-licensing-concept.git
+git clone <repository-url>
 cd software-licensing-concept
 ```
 
@@ -876,10 +876,10 @@ sudo systemctl start license-server
 | `DATABASE_URL` | MySQL-Verbindungsstring | `mysql://user:pass@localhost:3306/db` |
 | `JWT_SECRET` | Secret für JWT-Signing | `your-secret-key-min-32-chars` |
 | `VITE_APP_ID` | BC OAuth App-ID | `app-id-12345` |
-| `OAUTH_SERVER_URL` | OAuth-Server URL | `https://api.byte-commander.de` |
-| `VITE_OAUTH_PORTAL_URL` | OAuth-Portal URL | `https://auth.byte-commander.de` |
+| `OAUTH_SERVER_URL` | OAuth-Server URL | `<oauth-api-url>` |
+| `VITE_OAUTH_PORTAL_URL` | OAuth-Portal URL | `<oauth-portal-url>` |
 | `VITE_APP_TITLE` | Anwendungstitel | `Byte Commander License Server` |
-| `VITE_APP_LOGO` | Logo-URL | `https://domain.com/logo.png` |
+| `VITE_APP_LOGO` | Logo-URL | `/logo.png` |
 | `OWNER_NAME` | Besitzername | `Your Name` |
 | `OWNER_OPEN_ID` | Besitzer OAuth ID | `owner-id-12345` |
 | `PORT` | Server-Port | `3000` |
@@ -1073,7 +1073,7 @@ pnpm install speakeasy
 print(client.server_url)
 
 # Stellen Sie sicher, dass der Server läuft
-# curl https://your-license-server.com/api/health
+# curl <license-server-url>/api/health
 
 # Überprüfen Sie die Firewall
 ```
@@ -1095,8 +1095,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 Für weitere Hilfe:
 - 📧 Email: support@byte-commander.de
-- 🐛 GitHub Issues: https://github.com/TheRealByteCommander/software-licensing-concept/issues
-- 📚 Dokumentation: https://app.byte-commander.de/docs
+- 🐛 GitHub Issues: GitHub Issues im Repository
+- 📚 Dokumentation: <ihre-server-url>/docs
 
 ---
 
@@ -1121,9 +1121,9 @@ Beiträge sind willkommen! Bitte:
 ## 📞 Kontakt
 
 **Byte Commander**
-- Website: https://app.byte-commander.de
+- Website: <ihre-server-url>
 - Email: info@byte-commander.de
-- GitHub: https://github.com/TheRealByteCommander
+- GitHub: GitHub-Organisation TheRealByteCommander
 
 ---
 

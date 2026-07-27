@@ -9,8 +9,6 @@ export const ENV = {
   localAuthName: process.env.LOCAL_AUTH_NAME ?? "Local Admin",
   localAuthEmail: process.env.LOCAL_AUTH_EMAIL ?? "admin@localhost",
   isProduction: process.env.NODE_ENV === "production",
-  forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
-  forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS ?? "60000", 10),
   rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS ?? "120", 10),
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",

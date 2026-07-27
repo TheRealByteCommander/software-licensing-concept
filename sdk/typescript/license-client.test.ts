@@ -19,7 +19,7 @@ describe("LicenseClient", () => {
       }),
     });
 
-    const client = new LicenseClient({ baseUrl: "https://lic.example.com", fetchImpl: mockFetch as any });
+    const client = new LicenseClient({ baseUrl: "http://localhost:3000", fetchImpl: mockFetch as any });
 
     const result = await client.activate({
       licenseKey: "AAAA-BBBB-CCCC-DDDD",
@@ -56,7 +56,7 @@ describe("LicenseClient", () => {
       }),
     });
 
-    const client = new LicenseClient({ baseUrl: "https://lic.example.com", fetchImpl: mockFetch as any });
+    const client = new LicenseClient({ baseUrl: "http://localhost:3000", fetchImpl: mockFetch as any });
 
     await expect(
       client.activate({ licenseKey: "x", deviceId: "y" })

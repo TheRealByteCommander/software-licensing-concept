@@ -23,7 +23,7 @@ class LicenseClient:
         Initialize the license client
         
         Args:
-            server_url: Base URL of the license server (e.g., 'https://license.example.com')
+            server_url: Base URL of the license server (e.g., 'http://localhost:3000')
             product_id: Product ID from the license server
             license_key: License key (optional, can be set later)
         """

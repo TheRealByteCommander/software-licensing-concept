@@ -11,7 +11,6 @@ setup(
     description="A Python client library for software license management",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/licensing-sdk",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",

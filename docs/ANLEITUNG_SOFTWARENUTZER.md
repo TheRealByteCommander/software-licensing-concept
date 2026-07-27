@@ -11,7 +11,7 @@ Sie benötigen **keinen** Zugang zum Admin-Portal.
 | Information | Beispiel | Wofür |
 |---|---|---|
 | **Lizenzschlüssel** | `ABCD-EFGH-IJKL-MNOP` | Einmalige oder erneute Aktivierung |
-| **Server-URL** | `https://app.byte-commander.de` | Verbindung zum Lizenzserver |
+| **Server-URL** | `<ihre-server-url>` | Verbindung zum Lizenzserver |
 | **Software-Installationspaket** | Installer / Download-Link | Ihre Anwendung |
 | **Optional: Produkt-ID** | `1` | Manche Integrationen benötigen diese |
 | **Optional: 2FA-Hinweis** | Google Authenticator | Nur bei Erstaktivierung auf neuem Gerät |

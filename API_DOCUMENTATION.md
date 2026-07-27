@@ -53,7 +53,7 @@ Use `error.json.data.code` as the semantic error code (`NOT_FOUND`, `FORBIDDEN`,
 All API endpoints are accessed via the base URL of your deployed License Server:
 
 ```
-https://your-license-server.com/api/trpc/
+<license-server-url>/api/trpc/
 ```
 
 ## Authentication
@@ -364,8 +364,8 @@ Returns active plans with `billingModel` (`subscription` | `one_time`).
   "json": {
     "billingPlanId": 1,
     "customerEmail": "customer@example.com",
-    "successUrl": "https://your-app.com/purchase?success=1&session_id={CHECKOUT_SESSION_ID}",
-    "cancelUrl": "https://your-app.com/purchase?canceled=1"
+    "successUrl": "<ihre-app-url>/purchase?success=1&session_id={CHECKOUT_SESSION_ID}",
+    "cancelUrl": "<ihre-app-url>/purchase?canceled=1"
   }
 }
 ```
@@ -378,7 +378,7 @@ Returns active plans with `billingModel` (`subscription` | `one_time`).
     "data": {
       "json": {
         "sessionId": "cs_test_...",
-        "url": "https://checkout.stripe.com/...",
+        "url": "Stripe Checkout (externer Redirect)",
         "billingModel": "subscription"
       }
     }
