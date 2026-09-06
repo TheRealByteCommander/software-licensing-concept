@@ -5,7 +5,7 @@ A simple and secure Python client library for integrating the Byte Commander Lic
 ## Features
 
 - **Easy Integration**: Simple API for license activation and validation
-- **Offline Support**: Validate licenses without internet connection (for up to 7 days)
+- **Offline Support**: Validate licenses without internet connection (JWT `exp` / `offlineUntil`, default 72 hours)
 - **Secure**: Uses JWT tokens with digital signatures
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 - **Automatic Device Identification**: Generates unique device IDs automatically

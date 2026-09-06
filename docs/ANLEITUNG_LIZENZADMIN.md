@@ -1,6 +1,8 @@
 # Anleitung für Lizenz-Administratoren
 
-Diese Anleitung beschreibt den **tatsächlichen Stand** des Byte Commander License Servers (Admin-Portal + Backend). Sie richtet sich an Personen, die Produkte, Lizenzen und Aktivierungen verwalten.
+Diese Anleitung beschreibt den **tatsächlichen Stand** des Byte Commander License Servers (Admin-Portal + Backend). Sie richtet sich an **Vendor-Admins** (Byte Commander) auf `licadmin.schmitz.ms`.
+
+**Produktmodell:** Endkunden kaufen, verlängern und kündigen Lizenzen **in ihrer Software** (z. B. AnomalyMatrix) über die öffentlichen Stripe-APIs. Es gibt **kein** Endkunden-Portal in licadmin. Customers im Admin sind nur Stammdaten der Lizenznehmer.
 
 ---
 
@@ -38,14 +40,15 @@ LOCAL_AUTH_EMAIL=admin@localhost
 | Menüpunkt | Pfad | Funktion |
 |---|---|---|
 | Dashboard | `/` | Kennzahlen, letzte Aktivierungen, Lizenzstatus |
-| Products | `/products` | Software-Produkte verwalten |
+| Products | `/products` | Software-Produkte verwalten (sichtbare, kopierbare **Product ID**) |
 | Licenses | `/licenses` | Lizenzschlüssel erstellen und widerrufen |
-| Customers | `/customers` | Kundenstammdaten |
+| Customers | `/customers` | Kundenstammdaten (Lizenznehmer, keine Portal-Logins) |
 | Activations | `/activations` | Geräte-Aktivierungen einsehen |
 | Webhooks | `/webhooks` | Outbound Event-Benachrichtigungen |
 | Billing | `/billing` | Stripe-Pläne und Zahlungshistorie |
+| Admin Users | `/admins` | Optional: weitere Vendor-Admins (nicht Endkunden) |
 
-Öffentliche Checkout-Seite für Endkunden: `/checkout`
+`/checkout` ist nur Stripe-Redirect/Testseite, kein Kundenportal.
 
 ---
 
@@ -67,8 +70,31 @@ flowchart LR
    - **Name** – z. B. `Meine Desktop-App`
    - **Description** – Kurzbeschreibung (optional)
 3. **Create** klicken
+4. Im Erfolgsdialog die **Product ID** kopieren (auch als Toast `Product created. ID: …`)
 
-> Die Produkt-ID (interne Nummer) wird automatisch vergeben und wird für SDK-Integrationen benötigt.
+**Wo finde ich die Product ID?**
+
+- Spalte **Product ID** auf **Products** (Monospace + Copy-Button)
+- Nach dem Anlegen im Dialog **Product created**
+- Im Edit-Dialog des Produkts
+- In den Produkt-Auswahlen unter **Licenses**, **Billing** und **Activations** als `ID · Name`
+
+Integratoren und die öffentliche API (`api.activate` / `api.validate`) verwenden diese numerische ID als `productId`. Es gibt derzeit keinen separaten Product-Slug.
+
+**Default features (z. B. AnomalyMatrix, Product ID 2):**
+
+1. Products → Edit → **Default features** z. B. `basic, inspection, Trends, Export`
+2. Diese Flags werden bei **activate** / **validate** mit den License-Features zusammengeführt (nicht nur `basic`)
+3. Zusätzliche Flags pro Lizenz unter Licenses → Features
+
+Das JWT und die API-Antwort enthalten die vollständige Liste plus Offline-Fenster:
+
+| Claim / Feld | Bedeutung |
+|---|---|
+| `features` | Freigeschaltete Flags (Produkt-Defaults ∪ Lizenz-Metadata) |
+| `offlineGraceHours` | Standard **72** |
+| `offlineUntil` / JWT `exp` | Ende der Offline-Gültigkeit (max. 72h, nie länger als `expiresAt`) |
+| `licenseExpiresAt` | Tatsächliches Lizenzende (unix, oder `null` bei perpetual) |
 
 ### Schritt 2: 2FA einrichten (optional, empfohlen für sensible Produkte)
 
@@ -95,7 +121,7 @@ flowchart LR
 2. **Email** (Pflicht), **Name**, **Company** (optional)
 3. Speichern
 
-> Kunden können auch erst nachträglich zugeordnet werden. Die Lizenz-Erstellung im UI verknüpft derzeit **keinen** Kunden direkt – Zuordnung erfolgt über die API (`customerId`).
+> Kunden (Lizenznehmer) sind **keine** Admin-Portal-Logins. Beim Erstellen und Bearbeiten einer Lizenz kann ein Kunde direkt zugeordnet werden.
 
 ### Schritt 4: Lizenz erstellen
 
@@ -173,6 +199,36 @@ Für Feature-Lizenzen Metadata beim Erstellen setzen:
 
 ---
 
+## 5a. Admin Users (Portal-Konten)
+
+Unter **Admin Users** (`/admins`) werden nur **Vendor-Konten** der Tabelle `users` verwaltet (leichtgewichtig, optional). Endkunden bekommen hier **keine** Logins. **Customers** sind Lizenznehmer-Stammdaten, kein Self-Service.
+
+| Spalte | Bedeutung |
+|---|---|
+| ID, Name, Email | Portal-Konto |
+| Role | `admin` (volle Portal-Rechte) oder `user` |
+| Login | `local` oder OAuth-Methode (`loginMethod`) |
+| Last signed in | Letzte erfolgreiche Anmeldung |
+| Status | Active / Disabled |
+
+**Rechte (nur Admins):**
+
+- Rolle `user` / `admin` setzen
+- Konto sperren oder wieder aktivieren (`users.disabled`)
+- Eigenes Konto kann nicht selbst gesperrt oder degradiert werden
+- Der letzte aktive Admin kann nicht entfernt werden
+
+### Lokaler Admin (Self-Hosting)
+
+`LOCAL_AUTH` verwendet **ein** über die Umgebung definiertes Admin-Konto (`LOCAL_AUTH_OPEN_ID` / `NAME` / `EMAIL`). Dieses Konto erscheint in der Liste (wird beim Öffnen der Seite angelegt, falls noch nicht vorhanden).
+
+- Zusätzliche Portal-Admins: OAuth-Nutzer anmelden lassen, dann hier auf `admin` setzen
+- Passwort/TOTP-Reset für den lokalen Admin ist **kein** Bestandteil dieser Seite (würde den TOTP-Login-Flow berühren). Passwort + TOTP liegen im separaten Local-Auth-Setup, nicht in `users`
+
+Gesperrte Konten erhalten keine Admin-Session mehr. Die öffentliche Lizenz-API bleibt ohne Admin-Session erreichbar.
+
+---
+
 ## 6. Typische Admin-Aufgaben
 
 ### Geräte-Slot freimachen
@@ -213,6 +269,8 @@ Products → **Trash-Icon** → Bestätigen.
 | `STRIPE_WEBHOOK_SECRET` | Signing Secret für `/api/stripe/webhook` |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | Optional: Publishable Key für Frontend |
 | `APP_BASE_URL` | Optional: Basis-URL für Checkout-Redirects |
+| `HOST` | Bind-Adresse (Standard: `127.0.0.1`, nicht öffentlich) |
+| `PORT` | HTTP-Port (Standard: `3000`) |
 
 Details: [DEPLOYMENT.md](../DEPLOYMENT.md)
 
@@ -276,11 +334,11 @@ Empfohlene Success-URL:
 
 ```mermaid
 flowchart LR
-  A[Kunde öffnet /checkout] --> B[Stripe Checkout]
+  A[AnomalyMatrix ruft öffentliche Stripe-API] --> B[Stripe Checkout / Portal]
   B --> C[Webhook checkout.session.completed]
   C --> D[Kunde + Lizenz angelegt]
   D --> E[Abonnement: invoice.paid verlängert]
-  E --> F[Kündigung: subscription.deleted widerruft Lizenz]
+  E --> F[Kündigung: cancelSubscription oder subscription.deleted]
 ```
 
 | Stripe-Event | Server-Aktion |
@@ -291,7 +349,18 @@ flowchart LR
 | `customer.subscription.deleted` | Lizenz widerrufen |
 | `customer.subscription.updated` | Bei Status `canceled`/`unpaid` Lizenz widerrufen |
 
-### Öffentliche API
+### Öffentliche API (ohne Admin-Session, für Einbettung in AnomalyMatrix)
+
+Alle folgenden Prozeduren sind `publicProcedure` und brauchen **keine** Vendor-Anmeldung. Authentifizierung für Renew/Cancel: `licenseKey` + Kauf-E-Mail.
+
+| Aktion | Prozedur |
+|---|---|
+| Pläne | `stripe.plans.listPublic` |
+| Kaufen / erneut kaufen | `stripe.createCheckoutSession` |
+| Lizenz nach Zahlung | `stripe.getCheckoutResult` |
+| Status | `stripe.getLicenseBilling` |
+| Zahlart / Portal (Renew, Rechnungen) | `stripe.createCustomerPortalSession` |
+| Abo kündigen | `stripe.cancelSubscription` (`cancelAtPeriodEnd` Standard: true) |
 
 `tRPC stripe.createCheckoutSession` (öffentlich):
 
@@ -376,9 +445,14 @@ Unter **Activations** können Einträge nach Produkt, Status (Active/Deactivated
 ## 14. Checkliste vor Go-Live
 
 - [ ] `JWT_SECRET` gesetzt (min. 32 Zeichen, zufällig)
-- [ ] `DATABASE_URL` erreichbar, `pnpm db:push` ausgeführt
-- [ ] HTTPS aktiv (Reverse Proxy)
+- [ ] `DATABASE_URL` erreichbar, `pnpm db:push` ausgeführt (inkl. `users.disabled`)
+- [ ] HTTPS aktiv (Reverse Proxy / Cloudflare Tunnel)
+- [ ] `HOST=127.0.0.1` (Standard) – Origin nicht öffentlich binden
 - [ ] OAuth konfiguriert oder lokaler Admin-Modus bewusst gewählt
+- [ ] Product ID des ersten Produkts notiert / an Integratoren übergeben
+- [ ] Product default features gesetzt (AnomalyMatrix: `basic, inspection, Trends, Export`)
+- [ ] activate/validate Feature-Liste und 72h-`offlineUntil` geprüft
+- [ ] Admin Users geprüft (Rolle, kein unbeabsichtigt gesperrter Admin)
 - [ ] Erstes Produkt + Testlizenz erstellt
 - [ ] Testaktivierung mit SDK oder Kunden-Software erfolgreich
 - [ ] 2FA getestet (falls produktiv erforderlich)

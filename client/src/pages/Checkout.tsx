@@ -95,7 +95,8 @@ export default function Checkout() {
             {APP_TITLE} – License Checkout
           </CardTitle>
           <CardDescription>
-            Buy a subscription or one-time license. Unlock your software immediately after payment.
+            Stripe redirect landing and API test page. End customers purchase inside AnomalyMatrix,
+            not on this admin host.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

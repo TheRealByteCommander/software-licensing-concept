@@ -77,7 +77,7 @@ Wenn Ihr Anbieter 2FA für das Produkt aktiviert hat, ist beim **ersten Start au
 Bei jedem Start prüft die Software den gespeicherten Token:
 
 1. **Online-Validierung** (Standard): Verbindung zum License Server → sofortige Erkennung widerrufener/abgelaufener Lizenzen
-2. **Offline-Validierung** (Fallback): Prüfung des lokalen Tokens ohne Internet (begrenzte Gültigkeit, typisch bis zu **7 Tage**)
+2. **Offline-Validierung** (Fallback): Prüfung des lokalen Tokens ohne Internet (JWT-`exp` / `offlineUntil`, Standard **72 Stunden**)
 
 **Kein Lizenzschlüssel erneut eingeben**, solange:
 - der Token gültig ist

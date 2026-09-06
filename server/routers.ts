@@ -1,17 +1,28 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
-import { generateLicenseKey, generateLicenseToken, verifyLicenseToken } from "./licenseUtils";
+import { evaluateAdminUserChange } from "@shared/adminUsers";
+import { generateLicenseKey, verifyLicenseToken } from "./licenseUtils";
 import { TRPCError } from "@trpc/server";
+import { buildLicenseAccessGrant, toActivationPayload } from "./licenseGrant";
+import { normalizeFeatureList, serializeFeatureList } from "@shared/licenseMetadata";
 import { twoFARouter } from "./twoFARouter";
 import { webhooksRouter } from "./webhooksRouter";
 import { stripeRouter } from "./stripeRouter";
 import { isActivationStale } from "./licensePolicy";
 import { prepareLicenseForUse, licensesToCsv } from "./licenseFlow";
 import { dispatchWebhookEvent } from "./webhooks";
+import type { Product } from "../drizzle/schema";
+
+function mapProductRow(product: Product) {
+  return {
+    ...product,
+    defaultFeatures: normalizeFeatureList(product.defaultFeatures),
+  };
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -29,23 +40,30 @@ export const appRouter = router({
   // Products Management
   products: router({
     list: protectedProcedure.query(async () => {
-      return await db.getAllProducts();
+      const rows = await db.getAllProducts();
+      return rows.map(mapProductRow);
     }),
     
     get: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
-        return await db.getProductById(input.id);
+        const row = await db.getProductById(input.id);
+        return row ? mapProductRow(row) : undefined;
       }),
     
     create: protectedProcedure
       .input(z.object({
         name: z.string(),
         description: z.string().optional(),
+        defaultFeatures: z.array(z.string()).optional(),
       }))
       .mutation(async ({ input }) => {
-        await db.createProduct(input);
-        return { success: true };
+        const id = await db.createProduct({
+          name: input.name,
+          description: input.description,
+          defaultFeatures: serializeFeatureList(input.defaultFeatures),
+        });
+        return { success: true, id, name: input.name };
       }),
     
     update: protectedProcedure
@@ -53,10 +71,16 @@ export const appRouter = router({
         id: z.number(),
         name: z.string().optional(),
         description: z.string().optional(),
+        defaultFeatures: z.array(z.string()).optional(),
       }))
       .mutation(async ({ input }) => {
-        const { id, ...data } = input;
-        await db.updateProduct(id, data);
+        const { id, defaultFeatures, ...data } = input;
+        await db.updateProduct(id, {
+          ...data,
+          ...(defaultFeatures !== undefined
+            ? { defaultFeatures: serializeFeatureList(defaultFeatures) ?? null }
+            : {}),
+        });
         return { success: true };
       }),
     
@@ -189,16 +213,12 @@ export const appRouter = router({
 
         if (existingActivation) {
           await db.updateActivationValidation(existingActivation.id);
-
-          const token = generateLicenseToken({
-            licenseKey: input.licenseKey,
-            productId: license.productId,
+          const grant = buildLicenseAccessGrant({
+            license,
+            product,
             deviceId: input.deviceId,
-            expiresAt: license.expiresAt,
-            features: metadata.features ?? [],
           });
-
-          return { success: true, token, message: "Already activated" };
+          return toActivationPayload(grant, "Already activated");
         }
 
         if (product.require2FA) {
@@ -234,12 +254,10 @@ export const appRouter = router({
           deviceInfo: input.deviceInfo,
         });
 
-        const token = generateLicenseToken({
-          licenseKey: input.licenseKey,
-          productId: license.productId,
+        const grant = buildLicenseAccessGrant({
+          license,
+          product,
           deviceId: input.deviceId,
-          expiresAt: license.expiresAt,
-          features: metadata.features ?? [],
         });
 
         void dispatchWebhookEvent("license.activated", {
@@ -248,7 +266,7 @@ export const appRouter = router({
           deviceId: input.deviceId,
         });
 
-        return { success: true, token, message: "Activation successful" };
+        return toActivationPayload(grant, "Activation successful");
       }),
 
     validate: publicProcedure
@@ -258,7 +276,7 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         try {
           const decoded = verifyLicenseToken(input.token);
-          const { license, metadata } = await prepareLicenseForUse(decoded.licenseKey);
+          const { license } = await prepareLicenseForUse(decoded.licenseKey);
 
           const activation = await db.getActivationByDeviceAndLicense(
             decoded.licenseKey,
@@ -270,13 +288,23 @@ export const appRouter = router({
 
           await db.updateActivationValidation(activation.id);
 
+          const product = await db.getProductById(license.productId);
+          const grant = buildLicenseAccessGrant({
+            license,
+            product,
+            deviceId: decoded.deviceId,
+          });
+
           return {
             valid: true,
+            token: grant.token,
             license: {
               productId: license.productId,
               type: license.type,
               expiresAt: license.expiresAt,
-              features: metadata.features ?? [],
+              features: grant.features,
+              offlineGraceHours: grant.offlineGraceHours,
+              offlineUntil: grant.offlineUntil,
             },
           };
         } catch (error) {
@@ -367,6 +395,70 @@ export const appRouter = router({
           name: input.name,
           company: input.company,
         });
+        return { success: true };
+      }),
+  }),
+
+  // Admin portal accounts (OAuth + local-auth users table). Not license customers.
+  users: router({
+    list: adminProcedure.query(async () => {
+      await db.ensureLocalAdminUser();
+      return await db.getAllUsers();
+    }),
+
+    setRole: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        role: z.enum(["user", "admin"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const [target, allUsers] = await Promise.all([
+          db.getUserById(input.id),
+          db.getAllUsers(),
+        ]);
+        if (!target) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        }
+
+        const decision = evaluateAdminUserChange({
+          actorId: ctx.user.id,
+          target,
+          users: allUsers,
+          action: { type: "setRole", role: input.role },
+        });
+        if (!decision.ok) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: decision.message });
+        }
+
+        await db.updateUser(input.id, { role: input.role });
+        return { success: true };
+      }),
+
+    setDisabled: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        disabled: z.boolean(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const [target, allUsers] = await Promise.all([
+          db.getUserById(input.id),
+          db.getAllUsers(),
+        ]);
+        if (!target) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        }
+
+        const decision = evaluateAdminUserChange({
+          actorId: ctx.user.id,
+          target,
+          users: allUsers,
+          action: { type: "setDisabled", disabled: input.disabled },
+        });
+        if (!decision.ok) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: decision.message });
+        }
+
+        await db.updateUser(input.id, { disabled: input.disabled });
         return { success: true };
       }),
   }),

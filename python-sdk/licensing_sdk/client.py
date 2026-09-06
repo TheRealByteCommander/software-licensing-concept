@@ -131,7 +131,11 @@ class LicenseClient:
                 return {
                     'success': True,
                     'token': token,
-                    'message': data.get('message', 'Activation successful')
+                    'message': data.get('message', 'Activation successful'),
+                    'features': data.get('features', []),
+                    'productId': data.get('productId'),
+                    'offlineGraceHours': data.get('offlineGraceHours'),
+                    'offlineUntil': data.get('offlineUntil'),
                 }
             else:
                 return {
@@ -178,6 +182,9 @@ class LicenseClient:
             result = response.json()
             raise_for_trpc_error(result, response.ok)
             data = unwrap_result(result)
+            if data and data.get("valid") and data.get("token"):
+                self._token = data["token"]
+                self._save_token(data["token"])
             return data or {
                 'valid': False,
                 'message': 'Invalid response from server'
@@ -210,6 +217,9 @@ class LicenseClient:
                 'license': {
                     'productId': decoded.get('productId'),
                     'features': decoded.get('features', []),
+                    'offlineGraceHours': decoded.get('offlineGraceHours'),
+                    'offlineUntil': decoded.get('offlineUntil'),
+                    'licenseExpiresAt': decoded.get('licenseExpiresAt'),
                 }
             }
         except Exception as e:

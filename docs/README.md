@@ -4,11 +4,11 @@
 
 | Zielgruppe | Dokument | Inhalt |
 |---|---|---|
-| **Lizenz-Administrator** | [ANLEITUNG_LIZENZADMIN.md](./ANLEITUNG_LIZENZADMIN.md) | Produkte, Lizenzen, 2FA, Kunden, Aktivierungen |
+| **Lizenz-Administrator** | [ANLEITUNG_LIZENZADMIN.md](./ANLEITUNG_LIZENZADMIN.md) | Produkte (Product ID), Lizenzen, 2FA, Kunden, Admin Users, Aktivierungen |
 | **Software-Nutzer (Endanwender)** | [ANLEITUNG_SOFTWARENUTZER.md](./ANLEITUNG_SOFTWARENUTZER.md) | Lizenzschlüssel aktivieren, 2FA, Fehlerbehebung |
 | **Entwickler / Integration** | [../INTEGRATION_GUIDE.md](../INTEGRATION_GUIDE.md) | SDK-Einbindung (Python, Node, .NET) |
 | **Webhooks** | Admin-Portal `/webhooks` + [ANLEITUNG_LIZENZADMIN.md](./ANLEITUNG_LIZENZADMIN.md#9-webhooks-externe-integration) | Outbound Event-Benachrichtigungen |
-| **Stripe Billing** | Admin-Portal `/billing`, Checkout `/checkout` + [ANLEITUNG_LIZENZADMIN.md](./ANLEITUNG_LIZENZADMIN.md#8-stripe-zahlungen) | Stripe Checkout → automatische Lizenzvergabe |
+| **Stripe Billing** | Öffentliche APIs in der Produktssoftware + Vendor-Pläne unter `/billing` | Kaufen/Renew/Cancel ohne Admin-Session |
 
 ## Technische Referenz
 

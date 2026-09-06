@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatProductLabel } from "@shared/productLabel";
 
 export default function Activations() {
   const [productId, setProductId] = useState<string>("all");
@@ -56,7 +57,7 @@ export default function Activations() {
                 <SelectItem value="all">All products</SelectItem>
                 {products?.map(product => (
                   <SelectItem key={product.id} value={product.id.toString()}>
-                    {product.name}
+                    {formatProductLabel(product.id, product.name)}
                   </SelectItem>
                 ))}
               </SelectContent>

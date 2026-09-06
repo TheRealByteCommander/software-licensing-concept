@@ -95,7 +95,11 @@ Activate a license on a specific device.
       "json": {
         "success": true,
         "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        "message": "Activation successful"
+        "message": "Activation successful",
+        "features": ["basic", "inspection", "Trends", "Export"],
+        "productId": 2,
+        "offlineGraceHours": 72,
+        "offlineUntil": "2026-09-09T12:00:00.000Z"
       }
     }
   }
@@ -146,11 +150,14 @@ Validate an existing license token.
     "data": {
       "json": {
         "valid": true,
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
         "license": {
-          "productId": 1,
+          "productId": 2,
           "type": "subscription",
           "expiresAt": "2025-12-31T23:59:59.000Z",
-          "features": ["premium", "api_access"]
+          "features": ["basic", "inspection", "Trends", "Export"],
+          "offlineGraceHours": 72,
+          "offlineUntil": "2026-09-09T12:00:00.000Z"
         }
       }
     }
@@ -250,6 +257,32 @@ Returns all products.
 }
 ```
 
+**Response:**
+
+```json
+{
+  "success": true,
+  "id": 1,
+  "name": "My Software"
+}
+```
+
+The numeric `id` is the Product ID used by SDKs and `api.activate` / `api.validate`.
+
+---
+
+### Admin Users
+
+Portal accounts in the `users` table (OAuth and local admin). Not license customers.
+
+| Endpoint | Access | Description |
+|---|---|---|
+| `GET /api/trpc/users.list` | admin | List id, name, email, role, loginMethod, lastSignedIn, disabled |
+| `POST /api/trpc/users.setRole` | admin | `{ id, role: "user" \| "admin" }` |
+| `POST /api/trpc/users.setDisabled` | admin | `{ id, disabled }` |
+
+Self-demotion, self-disable, and removing the last active admin are rejected.
+
 ---
 
 ### Licenses
@@ -345,7 +378,15 @@ Returns all activations for a specific license.
 
 ### Stripe Checkout (Public)
 
+These endpoints are for **embedding in the product** (AnomalyMatrix). They do **not** require an admin session. licadmin is vendor-only; there is no end-customer portal.
+
 Supports **subscription** and **one-time payment** billing plans. After payment, licenses are issued immediately and can be activated without waiting for email delivery.
+
+Renew/cancel (same public auth: `licenseKey` + purchase email):
+
+- `GET /api/trpc/stripe.getLicenseBilling`
+- `POST /api/trpc/stripe.createCustomerPortalSession` (`returnUrl` required)
+- `POST /api/trpc/stripe.cancelSubscription` (`cancelAtPeriodEnd` defaults to true)
 
 #### List Public Billing Plans
 

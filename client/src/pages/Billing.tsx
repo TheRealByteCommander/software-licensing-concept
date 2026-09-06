@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { formatProductLabel } from "@shared/productLabel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -82,7 +83,11 @@ export default function Billing() {
   const { data: payments, isLoading: paymentsLoading } = trpc.stripe.payments.list.useQuery();
 
   const productOptions = useMemo(
-    () => (products ?? []).map(product => ({ id: product.id, label: product.name })),
+    () =>
+      (products ?? []).map(product => ({
+        id: product.id,
+        label: formatProductLabel(product.id, product.name),
+      })),
     [products]
   );
 
@@ -295,7 +300,9 @@ export default function Billing() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Billing</h1>
-          <p className="text-muted-foreground">Stripe checkout plans and payment history</p>
+          <p className="text-muted-foreground">
+            Vendor plan catalog. Customers buy, renew, and cancel inside the product software, not here.
+          </p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)} disabled={!stripeStatus?.configured}>
           <Plus className="mr-2 h-4 w-4" />

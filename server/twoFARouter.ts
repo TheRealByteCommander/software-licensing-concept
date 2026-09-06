@@ -6,6 +6,7 @@ import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
 import { prepareLicenseForUse } from "./licenseFlow";
 import { dispatchWebhookEvent } from "./webhooks";
+import { buildLicenseAccessGrant, toActivationPayload } from "./licenseGrant";
 
 export const twoFARouter = router({
   /**
@@ -230,15 +231,10 @@ export const twoFARouter = router({
         deviceInfo: token.deviceInfo,
       });
 
-      // Generate license token
-      const { generateLicenseToken } = await import("./licenseUtils");
-      const metadata = license.metadata ? JSON.parse(license.metadata) : {};
-      const licenseToken = generateLicenseToken({
-        licenseKey: token.licenseKey,
-        productId: license.productId,
+      const grant = buildLicenseAccessGrant({
+        license,
+        product,
         deviceId: token.deviceId,
-        expiresAt: license.expiresAt,
-        features: metadata.features ?? [],
       });
 
       void dispatchWebhookEvent("license.activated", {
@@ -248,10 +244,6 @@ export const twoFARouter = router({
         via2FA: true,
       });
 
-      return {
-        success: true,
-        token: licenseToken,
-        message: "2FA verification successful, license activated",
-      };
+      return toActivationPayload(grant, "2FA verification successful, license activated");
     }),
 });

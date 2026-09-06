@@ -45,7 +45,7 @@ Das **Byte Commander License Server** ist ein umfassendes Lizenzverwaltungssyste
 - **2FA-Sicherheit:** Google Authenticator Integration für sichere Lizenzaktivierungen
 - **Multi-Platform:** Unterstützung für Web, Python, Node.js und andere Plattformen
 - **Admin-Portal:** Vollständige Verwaltungsoberfläche für Produkte, Lizenzen und Kunden
-- **Offline-Validierung:** Lizenzen können offline validiert werden (bis zu 7 Tage)
+- **Offline-Validierung:** Lizenzen können offline validiert werden (72 Stunden, JWT-`exp` / `offlineUntil`)
 - **REST API:** Umfassende tRPC/REST API für Integration in bestehende Systeme
 - **Skalierbar:** Gebaut auf modernen Technologien (Express, React, Drizzle ORM)
 
@@ -64,9 +64,8 @@ Das **Byte Commander License Server** ist ein umfassendes Lizenzverwaltungssyste
 - ✅ **2FA mit Google Authenticator:** TOTP-basierte Authentifizierung bei Lizenzaktivierung
 - ✅ **JWT-Token:** Sichere, signierte Tokens für Offline-Validierung
 - ✅ **Rate Limiting:** Schutz vor Brute-Force-Angriffen
-- ✅ **Token Blacklisting:** Verwaltung ungültiger Tokens
-- ✅ **HTTPS/TLS:** Verschlüsselte Kommunikation
-- ✅ **Sichere Speicherung:** Gehashed Passwörter, sichere Datenbank-Konfiguration
+- ✅ **HTTPS/TLS:** Verschlüsselte Kommunikation (über Reverse Proxy / Tunnel)
+- ✅ **Widerruf:** Lizenzstatus `revoked` verhindert weitere Aktivierung/Validierung
 
 ### Admin-Portal
 - ✅ **Dashboard:** Übersichtsstatistiken und Echtzeit-Metriken
@@ -75,12 +74,14 @@ Das **Byte Commander License Server** ist ein umfassendes Lizenzverwaltungssyste
 - ✅ **Kundenverwaltung:** Verwaltung von Kundeninformationen
 - ✅ **Aktivierungsverlauf:** Detaillierte Logs aller Aktivierungen
 - ✅ **2FA-Konfiguration:** Aktivieren/Deaktivieren von 2FA pro Produkt
+- ✅ **Product ID:** Sichtbare, kopierbare numerische Produkt-ID für Integratoren
+- ✅ **Admin Users:** Portal-Konten auflisten, Rolle setzen, Konten sperren
 
 ### Integration
 - ✅ **Python SDK:** Vollständige Python-Bibliothek mit 2FA-Unterstützung
 - ✅ **REST API:** Standardisierte API-Endpoints
 - ✅ **tRPC:** Type-safe RPC für Web-Anwendungen
-- ✅ **Webhook-Support:** (Geplant) Ereignisbenachrichtigungen
+- ✅ **Webhook-Support:** Outbound Events im Admin-Portal (`/webhooks`)
 
 ---
 
@@ -176,6 +177,10 @@ VITE_APP_LOGO=<ihre-domain>/logo.png
 # Owner
 OWNER_NAME=Your Name
 OWNER_OPEN_ID=your-open-id
+
+# Bind (localhost only; Cloudflare Tunnel / reverse proxy connect here)
+HOST=127.0.0.1
+PORT=3000
 
 # Stripe (optional – für Lizenzverkauf via Checkout)
 STRIPE_SECRET_KEY=sk_test_...
@@ -273,7 +278,7 @@ Das System unterstützt mehrere flexible Lizenzmodelle:
 
 ### 2. **Perpetual (Unbefristet)**
 - **Beschreibung:** Lizenz ohne Ablaufdatum
-- **Ablauf:** Kein Lizenzablauf (JWT-Token für Offline-Nutzung max. 7 Tage gültig)
+- **Ablauf:** Kein Lizenzablauf (JWT-Token für Offline-Nutzung **72 Stunden**, Claims `offlineGraceHours` / `offlineUntil`)
 - **Ideal für:** Desktop-Software, One-Time-Purchase
 
 ```json
@@ -400,7 +405,7 @@ if activation_result['success']:
 - ✅ **TOTP (Time-based One-Time Password):** Zeitbasierte Codes, gültig für 30 Sekunden
 - ✅ **Aktivierungstoken:** 10-Minuten-Ablauf für zusätzliche Sicherheit
 - ✅ **Brute-Force-Schutz:** Rate Limiting bei fehlgeschlagenen Versuchen
-- ✅ **Backup-Codes:** (Geplant) Wiederherstellungscodes für den Fall, dass Authenticator verloren geht
+- ✅ **Backup-Codes:** Wiederherstellungscodes bei der 2FA-Einrichtung im Admin-Portal
 
 ---
 
@@ -622,7 +627,7 @@ else:
     print("✗ Lizenz ist ungültig")
     exit(1)
 
-# Offline-Validierung (bis zu 7 Tage)
+# Offline-Validierung (72 Stunden)
 if client.is_valid(online=False):
     print("✓ Lizenz ist offline gültig!")
 ```
@@ -808,7 +813,7 @@ pnpm db:push
 pnpm start
 ```
 
-Der Server läuft dann auf Port 3000 (konfigurierbar via `PORT` Umgebungsvariable).
+Der Server bindet standardmäßig an `127.0.0.1:3000` (`HOST=127.0.0.1`, `PORT=3000`).
 
 #### Schritt 5: Reverse Proxy konfigurieren (Nginx)
 
@@ -882,6 +887,7 @@ sudo systemctl start license-server
 | `VITE_APP_LOGO` | Logo-URL | `/logo.png` |
 | `OWNER_NAME` | Besitzername | `Your Name` |
 | `OWNER_OPEN_ID` | Besitzer OAuth ID | `owner-id-12345` |
+| `HOST` | Bind-Adresse (nicht öffentlich) | `127.0.0.1` |
 | `PORT` | Server-Port | `3000` |
 | `NODE_ENV` | Umgebung | `production` oder `development` |
 
@@ -889,8 +895,8 @@ sudo systemctl start license-server
 
 Das System verwendet folgende Tabellen:
 
-- **users:** Benutzer und Admin-Konten
-- **products:** Verwaltete Produkte
+- **users:** Portal-Konten (OAuth/local admin), inkl. Rolle und `disabled`
+- **products:** Verwaltete Produkte (numerische Product ID)
 - **licenses:** Lizenzinformationen
 - **activations:** Aktivierungsverlauf
 - **customers:** Kundeninformationen
@@ -975,12 +981,12 @@ pnpm format
 2. **HTTPS:** Verwenden Sie immer HTTPS in Produktion
 3. **Rate Limiting:** Das System implementiert automatisches Rate Limiting
 4. **Token-Ablauf:** Tokens haben ein Ablaufdatum
-5. **Sichere Speicherung:** Passwörter werden gehashed
+5. **Localhost-Bind:** Standard `HOST=127.0.0.1`, damit Port 3000 nicht öffentlich erreichbar ist
 
 ### Sicherheitsfeatures
 
 - ✅ **JWT-Signatur:** Alle Tokens sind digital signiert
-- ✅ **Token-Blacklisting:** Ungültige Tokens werden verwaltet
+- ✅ **Lizenz-Widerruf:** Status `revoked` statt Token-Blacklist
 - ✅ **CORS:** Konfigurierbare Cross-Origin-Anfragen
 - ✅ **SQL-Injection-Schutz:** Drizzle ORM schützt automatisch
 - ✅ **XSS-Schutz:** React sanitiert automatisch

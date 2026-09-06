@@ -13,6 +13,8 @@ describe("LicenseClient", () => {
               success: true,
               token: "jwt-token",
               message: "Activation successful",
+              features: ["basic", "Trends", "Export"],
+              offlineGraceHours: 72,
             },
           },
         },
@@ -28,6 +30,8 @@ describe("LicenseClient", () => {
 
     expect(result.success).toBe(true);
     expect(result.token).toBe("jwt-token");
+    expect(result.features).toEqual(["basic", "Trends", "Export"]);
+    expect(result.offlineGraceHours).toBe(72);
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({
       json: {

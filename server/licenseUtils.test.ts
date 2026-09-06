@@ -37,5 +37,7 @@ describe("licenseUtils", () => {
     expect(payload.productId).toBe(42);
     expect(payload.deviceId).toBe("device-1");
     expect(payload.features).toEqual(["pro"]);
+    expect(payload.offlineGraceHours).toBe(72);
+    expect(payload.offlineUntil).toBe(payload.exp);
   });
 });

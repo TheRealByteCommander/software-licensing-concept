@@ -30,6 +30,8 @@ import {
   metadataFromForm,
   type LicenseFormState,
 } from "@/lib/licenseForm";
+import { formatProductLabel } from "@shared/productLabel";
+import { parseLicenseMetadata, resolveLicenseFeatures } from "@shared/licenseMetadata";
 
 export default function Licenses() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -43,7 +45,24 @@ export default function Licenses() {
   const { data: customers } = trpc.customers.list.useQuery();
 
   const productOptions =
-    products?.map(product => ({ id: product.id, label: product.name })) ?? [];
+    products?.map(product => ({
+      id: product.id,
+      label: formatProductLabel(product.id, product.name),
+    })) ?? [];
+
+  const applyCreateForm = (form: LicenseFormState) => {
+    if (form.productId !== createForm.productId) {
+      const product = products?.find(entry => String(entry.id) === form.productId);
+      const defaults = Array.isArray(product?.defaultFeatures)
+        ? product.defaultFeatures.join(", ")
+        : "";
+      if (!form.features.trim()) {
+        setCreateForm({ ...form, features: defaults });
+        return;
+      }
+    }
+    setCreateForm(form);
+  };
   const customerOptions =
     customers?.map(customer => ({
       id: customer.id,
@@ -179,6 +198,7 @@ export default function Licenses() {
                 <TableRow>
                   <TableHead>License Key</TableHead>
                   <TableHead>Product</TableHead>
+                  <TableHead>Features</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
@@ -204,7 +224,22 @@ export default function Licenses() {
                           </Button>
                         </div>
                       </TableCell>
-                      <TableCell>{product?.name || "—"}</TableCell>
+                      <TableCell>
+                        {product
+                          ? formatProductLabel(product.id, product.name)
+                          : license.productId
+                            ? formatProductLabel(license.productId)
+                            : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const flags = resolveLicenseFeatures(
+                            product?.defaultFeatures,
+                            parseLicenseMetadata(license.metadata).features
+                          );
+                          return flags.length ? flags.join(", ") : "—";
+                        })()}
+                      </TableCell>
                       <TableCell>{customerLabel(license.customerId)}</TableCell>
                       <TableCell className="capitalize">{license.type.replace("_", " ")}</TableCell>
                       <TableCell>{getStatusBadge(license.status)}</TableCell>
@@ -247,7 +282,7 @@ export default function Licenses() {
           </DialogHeader>
           <LicenseFormFields
             form={createForm}
-            setForm={setCreateForm}
+            setForm={applyCreateForm}
             products={productOptions}
             customers={customerOptions}
           />

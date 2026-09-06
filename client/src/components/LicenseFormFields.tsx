@@ -146,8 +146,12 @@ export default function LicenseFormFields({
           id="features"
           value={form.features}
           onChange={e => setForm({ ...form, features: e.target.value })}
-          placeholder="basic, pro, api_access"
+          placeholder="basic, inspection, Trends, Export"
         />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Extra flags for this license. Product default features are always merged in the API
+          response (empty here still returns the product defaults).
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
