@@ -213,6 +213,8 @@ Products → **Trash-Icon** → Bestätigen.
 | `STRIPE_WEBHOOK_SECRET` | Signing Secret für `/api/stripe/webhook` |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | Optional: Publishable Key für Frontend |
 | `APP_BASE_URL` | Optional: Basis-URL für Checkout-Redirects |
+| `HOST` | Bind-Adresse (Standard: `127.0.0.1`, nicht öffentlich) |
+| `PORT` | HTTP-Port (Standard: `3000`) |
 
 Details: [DEPLOYMENT.md](../DEPLOYMENT.md)
 

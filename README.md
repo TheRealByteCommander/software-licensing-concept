@@ -177,6 +177,10 @@ VITE_APP_LOGO=<ihre-domain>/logo.png
 OWNER_NAME=Your Name
 OWNER_OPEN_ID=your-open-id
 
+# Bind (localhost only; Cloudflare Tunnel / reverse proxy connect here)
+HOST=127.0.0.1
+PORT=3000
+
 # Stripe (optional – für Lizenzverkauf via Checkout)
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
@@ -808,7 +812,7 @@ pnpm db:push
 pnpm start
 ```
 
-Der Server läuft dann auf Port 3000 (konfigurierbar via `PORT` Umgebungsvariable).
+Der Server bindet standardmäßig an `127.0.0.1:3000` (`HOST=127.0.0.1`, `PORT=3000`).
 
 #### Schritt 5: Reverse Proxy konfigurieren (Nginx)
 
@@ -882,6 +886,7 @@ sudo systemctl start license-server
 | `VITE_APP_LOGO` | Logo-URL | `/logo.png` |
 | `OWNER_NAME` | Besitzername | `Your Name` |
 | `OWNER_OPEN_ID` | Besitzer OAuth ID | `owner-id-12345` |
+| `HOST` | Bind-Adresse (nicht öffentlich) | `127.0.0.1` |
 | `PORT` | Server-Port | `3000` |
 | `NODE_ENV` | Umgebung | `production` oder `development` |
 
