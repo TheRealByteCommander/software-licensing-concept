@@ -34,6 +34,8 @@ export const products = mysqlTable("products", {
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   require2FA: boolean("require2FA").default(false).notNull(),
+  /** JSON array of default feature flags inherited by licenses (e.g. basic, inspection, Trends, Export). */
+  defaultFeatures: text("defaultFeatures"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

@@ -79,6 +79,21 @@ flowchart LR
 
 Integratoren und die öffentliche API (`api.activate` / `api.validate`) verwenden diese numerische ID als `productId`. Es gibt derzeit keinen separaten Product-Slug.
 
+**Default features (z. B. AnomalyMatrix, Product ID 2):**
+
+1. Products → Edit → **Default features** z. B. `basic, inspection, Trends, Export`
+2. Diese Flags werden bei **activate** / **validate** mit den License-Features zusammengeführt (nicht nur `basic`)
+3. Zusätzliche Flags pro Lizenz unter Licenses → Features
+
+Das JWT und die API-Antwort enthalten die vollständige Liste plus Offline-Fenster:
+
+| Claim / Feld | Bedeutung |
+|---|---|
+| `features` | Freigeschaltete Flags (Produkt-Defaults ∪ Lizenz-Metadata) |
+| `offlineGraceHours` | Standard **72** |
+| `offlineUntil` / JWT `exp` | Ende der Offline-Gültigkeit (max. 72h, nie länger als `expiresAt`) |
+| `licenseExpiresAt` | Tatsächliches Lizenzende (unix, oder `null` bei perpetual) |
+
 ### Schritt 2: 2FA einrichten (optional, empfohlen für sensible Produkte)
 
 2FA gilt **nur für neue Geräte-Aktivierungen**, nicht für den täglichen Programmstart.
@@ -422,6 +437,8 @@ Unter **Activations** können Einträge nach Produkt, Status (Active/Deactivated
 - [ ] `HOST=127.0.0.1` (Standard) – Origin nicht öffentlich binden
 - [ ] OAuth konfiguriert oder lokaler Admin-Modus bewusst gewählt
 - [ ] Product ID des ersten Produkts notiert / an Integratoren übergeben
+- [ ] Product default features gesetzt (AnomalyMatrix: `basic, inspection, Trends, Export`)
+- [ ] activate/validate Feature-Liste und 72h-`offlineUntil` geprüft
 - [ ] Admin Users geprüft (Rolle, kein unbeabsichtigt gesperrter Admin)
 - [ ] Erstes Produkt + Testlizenz erstellt
 - [ ] Testaktivierung mit SDK oder Kunden-Software erfolgreich

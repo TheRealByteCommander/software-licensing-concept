@@ -36,6 +36,13 @@
       "when": 1757200000000,
       "tag": "0007_users_disabled",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1757201000000,
+      "tag": "0008_product_default_features",
+      "breakpoints": true
     }
   ]
 }

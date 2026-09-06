@@ -33,7 +33,7 @@ export default function Products() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [twoFAProduct, setTwoFAProduct] = useState<any>(null);
   const [createdProduct, setCreatedProduct] = useState<{ id: number; name: string } | null>(null);
-  const [formData, setFormData] = useState({ name: "", description: "" });
+  const [formData, setFormData] = useState({ name: "", description: "", defaultFeatures: "" });
 
   const utils = trpc.useUtils();
   const { data: products, isLoading } = trpc.products.list.useQuery();
@@ -42,7 +42,7 @@ export default function Products() {
     onSuccess: data => {
       utils.products.list.invalidate();
       setIsCreateOpen(false);
-      setFormData({ name: "", description: "" });
+      setFormData({ name: "", description: "", defaultFeatures: "" });
       setCreatedProduct({ id: data.id, name: data.name });
       toast.success(`Product created. ID: ${data.id}`);
     },
@@ -55,7 +55,7 @@ export default function Products() {
     onSuccess: () => {
       utils.products.list.invalidate();
       setEditingProduct(null);
-      setFormData({ name: "", description: "" });
+      setFormData({ name: "", description: "", defaultFeatures: "" });
       toast.success("Product updated successfully");
     },
     onError: (error) => {
@@ -73,19 +73,40 @@ export default function Products() {
     },
   });
 
+  const featureList = (value: string) =>
+    value
+      .split(",")
+      .map(item => item.trim())
+      .filter(Boolean);
+
   const handleCreate = () => {
-    createMutation.mutate(formData);
+    createMutation.mutate({
+      name: formData.name,
+      description: formData.description,
+      defaultFeatures: featureList(formData.defaultFeatures),
+    });
   };
 
   const handleUpdate = () => {
     if (editingProduct) {
-      updateMutation.mutate({ id: editingProduct.id, ...formData });
+      updateMutation.mutate({
+        id: editingProduct.id,
+        name: formData.name,
+        description: formData.description,
+        defaultFeatures: featureList(formData.defaultFeatures),
+      });
     }
   };
 
   const handleEdit = (product: any) => {
     setEditingProduct(product);
-    setFormData({ name: product.name, description: product.description || "" });
+    setFormData({
+      name: product.name,
+      description: product.description || "",
+      defaultFeatures: Array.isArray(product.defaultFeatures)
+        ? product.defaultFeatures.join(", ")
+        : "",
+    });
   };
 
   const handleDelete = (id: number) => {
@@ -126,6 +147,7 @@ export default function Products() {
                   <TableHead>Product ID</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead>Features</TableHead>
                   <TableHead>2FA</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -139,6 +161,19 @@ export default function Products() {
                     </TableCell>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>{product.description || "—"}</TableCell>
+                    <TableCell>
+                      {product.defaultFeatures?.length ? (
+                        <div className="flex flex-wrap gap-1">
+                          {product.defaultFeatures.map(flag => (
+                            <Badge key={flag} variant="outline">
+                              {flag}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
                     <TableCell>
                       {product.require2FA ? (
                         <Badge>Required</Badge>
@@ -207,6 +242,18 @@ export default function Products() {
                 placeholder="Product description"
               />
             </div>
+            <div>
+              <Label htmlFor="defaultFeatures">Default features</Label>
+              <Input
+                id="defaultFeatures"
+                value={formData.defaultFeatures}
+                onChange={e => setFormData({ ...formData, defaultFeatures: e.target.value })}
+                placeholder="basic, inspection, Trends, Export"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Returned on activate/validate and merged with each license&apos;s feature list.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
@@ -250,6 +297,18 @@ export default function Products() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
+            </div>
+            <div>
+              <Label htmlFor="edit-defaultFeatures">Default features</Label>
+              <Input
+                id="edit-defaultFeatures"
+                value={formData.defaultFeatures}
+                onChange={e => setFormData({ ...formData, defaultFeatures: e.target.value })}
+                placeholder="basic, inspection, Trends, Export"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Example for AnomalyMatrix: basic, inspection, Trends, Export
+              </p>
             </div>
           </div>
           <DialogFooter>

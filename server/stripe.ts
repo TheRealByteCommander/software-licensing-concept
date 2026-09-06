@@ -4,7 +4,7 @@ import type { BillingPlan } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import * as db from "./db";
 import { generateLicenseKey } from "./licenseUtils";
-import { buildLicenseMetadata } from "./licensePolicy";
+import { buildLicenseMetadata, parseLicenseMetadata, resolveLicenseFeatures } from "./licensePolicy";
 import { dispatchWebhookEvent } from "./webhooks";
 
 let stripeClient: Stripe | null = null;
@@ -64,9 +64,9 @@ function computeInitialExpiry(plan: BillingPlan, periodEnd?: number | null): Dat
   return expiresAt;
 }
 
-function buildLicenseMetadataForPlan(plan: BillingPlan): string | undefined {
+function buildLicenseMetadataForPlan(plan: BillingPlan, productDefaultFeatures?: unknown): string | undefined {
   return buildLicenseMetadata({
-    features: parseBillingPlanFeatures(plan.features),
+    features: resolveLicenseFeatures(productDefaultFeatures, parseBillingPlanFeatures(plan.features)),
     autoRenew: plan.billingModel === "subscription" ? plan.autoRenew : false,
     renewalPeriodDays: plan.renewalPeriodDays ?? 365,
   });
@@ -87,7 +87,12 @@ async function buildCheckoutResult(input: {
     }),
   ]);
 
-  const metadata = parseBillingPlanFeatures(plan?.features);
+  const planFeatures = parseBillingPlanFeatures(plan?.features);
+  const licenseFeatures = parseLicenseMetadata(license?.metadata).features;
+  const features = resolveLicenseFeatures(product?.defaultFeatures, [
+    ...planFeatures,
+    ...(licenseFeatures ?? []),
+  ]);
 
   return {
     status: "completed",
@@ -99,7 +104,7 @@ async function buildCheckoutResult(input: {
     licenseType: plan?.licenseType ?? license?.type,
     billingModel: plan?.billingModel,
     expiresAt: license?.expiresAt ? new Date(license.expiresAt).toISOString() : null,
-    features: metadata,
+    features,
     customerEmail: input.customerEmail ?? undefined,
   };
 }
@@ -344,7 +349,8 @@ async function issueLicenseForPlan(input: {
   periodEnd?: number | null;
 }) {
   const licenseKey = generateLicenseKey();
-  const metadata = buildLicenseMetadataForPlan(input.plan);
+  const product = await db.getProductById(input.plan.productId);
+  const metadata = buildLicenseMetadataForPlan(input.plan, product?.defaultFeatures);
 
   await db.createLicense({
     licenseKey,

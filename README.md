@@ -45,7 +45,7 @@ Das **Byte Commander License Server** ist ein umfassendes Lizenzverwaltungssyste
 - **2FA-Sicherheit:** Google Authenticator Integration für sichere Lizenzaktivierungen
 - **Multi-Platform:** Unterstützung für Web, Python, Node.js und andere Plattformen
 - **Admin-Portal:** Vollständige Verwaltungsoberfläche für Produkte, Lizenzen und Kunden
-- **Offline-Validierung:** Lizenzen können offline validiert werden (bis zu 7 Tage)
+- **Offline-Validierung:** Lizenzen können offline validiert werden (72 Stunden, JWT-`exp` / `offlineUntil`)
 - **REST API:** Umfassende tRPC/REST API für Integration in bestehende Systeme
 - **Skalierbar:** Gebaut auf modernen Technologien (Express, React, Drizzle ORM)
 
@@ -278,7 +278,7 @@ Das System unterstützt mehrere flexible Lizenzmodelle:
 
 ### 2. **Perpetual (Unbefristet)**
 - **Beschreibung:** Lizenz ohne Ablaufdatum
-- **Ablauf:** Kein Lizenzablauf (JWT-Token für Offline-Nutzung max. 7 Tage gültig)
+- **Ablauf:** Kein Lizenzablauf (JWT-Token für Offline-Nutzung **72 Stunden**, Claims `offlineGraceHours` / `offlineUntil`)
 - **Ideal für:** Desktop-Software, One-Time-Purchase
 
 ```json
@@ -627,7 +627,7 @@ else:
     print("✗ Lizenz ist ungültig")
     exit(1)
 
-# Offline-Validierung (bis zu 7 Tage)
+# Offline-Validierung (72 Stunden)
 if client.is_valid(online=False):
     print("✓ Lizenz ist offline gültig!")
 ```

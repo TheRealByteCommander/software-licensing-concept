@@ -67,16 +67,23 @@ export type ActivateResponse = {
   success: true;
   token: string;
   message: string;
+  features?: string[];
+  productId?: number;
+  offlineGraceHours?: number;
+  offlineUntil?: string;
 };
 
 export type ValidateResponse =
   | {
       valid: true;
+      token?: string;
       license: {
         productId: number;
         type: LicenseType;
         expiresAt: string | null;
         features: string[];
+        offlineGraceHours?: number;
+        offlineUntil?: string;
       };
     }
   | {

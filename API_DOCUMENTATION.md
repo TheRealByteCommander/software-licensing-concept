@@ -95,7 +95,11 @@ Activate a license on a specific device.
       "json": {
         "success": true,
         "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        "message": "Activation successful"
+        "message": "Activation successful",
+        "features": ["basic", "inspection", "Trends", "Export"],
+        "productId": 2,
+        "offlineGraceHours": 72,
+        "offlineUntil": "2026-09-09T12:00:00.000Z"
       }
     }
   }
@@ -146,11 +150,14 @@ Validate an existing license token.
     "data": {
       "json": {
         "valid": true,
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
         "license": {
-          "productId": 1,
+          "productId": 2,
           "type": "subscription",
           "expiresAt": "2025-12-31T23:59:59.000Z",
-          "features": ["premium", "api_access"]
+          "features": ["basic", "inspection", "Trends", "Export"],
+          "offlineGraceHours": 72,
+          "offlineUntil": "2026-09-09T12:00:00.000Z"
         }
       }
     }

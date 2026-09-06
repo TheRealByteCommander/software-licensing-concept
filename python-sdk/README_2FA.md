@@ -62,4 +62,4 @@ else:
 - **2FA is only for NEW activations** - not for validation
 - **Token is cached locally** - subsequent program starts don't need 2FA
 - **Activation token expires in 10 minutes** - user must complete 2FA within this time
-- **Offline validation works** - program can validate license without internet for up to 7 days
+- **Offline validation works** - program can validate license without internet for 72 hours (`offlineGraceHours` / `offlineUntil` on the token)

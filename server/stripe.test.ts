@@ -322,6 +322,7 @@ describe("getCheckoutResult", () => {
       name: "Desktop App",
       description: null,
       require2FA: false,
+      defaultFeatures: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

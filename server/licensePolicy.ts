@@ -3,6 +3,9 @@ export {
   buildLicenseMetadata,
   getRenewalPeriodDays,
   parseLicenseMetadata,
+  resolveLicenseFeatures,
+  normalizeFeatureList,
+  DEFAULT_OFFLINE_GRACE_HOURS,
 } from "@shared/licenseMetadata";
 
 export function isActivationStale(

@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { ENV } from "./_core/env";
+import { DEFAULT_OFFLINE_GRACE_HOURS, normalizeOfflineGraceHours } from "@shared/licenseMetadata";
 
 /**
  * Generate a random license key in the format: XXXX-XXXX-XXXX-XXXX
@@ -25,8 +26,54 @@ export function generateLicenseKey(): string {
   return parts.join("-");
 }
 
+export type OfflineWindow = {
+  offlineGraceHours: number;
+  offlineUntil: number;
+  exp: number;
+  licenseExpiresAt: number | null;
+};
+
+/** Offline JWT window: default 72h, never longer than the license expiry. */
+export function computeOfflineWindow(input: {
+  nowMs?: number;
+  offlineGraceHours?: number;
+  licenseExpiresAt?: Date | null;
+}): OfflineWindow {
+  const nowSec = Math.floor((input.nowMs ?? Date.now()) / 1000);
+  const offlineGraceHours = normalizeOfflineGraceHours(input.offlineGraceHours);
+  const graceUntil = nowSec + offlineGraceHours * 60 * 60;
+  const licenseExpiresAt = input.licenseExpiresAt
+    ? Math.floor(new Date(input.licenseExpiresAt).getTime() / 1000)
+    : null;
+  const exp =
+    licenseExpiresAt != null && Number.isFinite(licenseExpiresAt)
+      ? Math.min(graceUntil, licenseExpiresAt)
+      : graceUntil;
+
+  return {
+    offlineGraceHours,
+    offlineUntil: exp,
+    exp: Math.max(exp, nowSec + 1),
+    licenseExpiresAt: licenseExpiresAt != null && Number.isFinite(licenseExpiresAt) ? licenseExpiresAt : null,
+  };
+}
+
+export type LicenseTokenClaims = {
+  licenseKey: string;
+  productId: number;
+  deviceId: string;
+  features: string[];
+  offlineGraceHours: number;
+  offlineUntil: number;
+  licenseExpiresAt: number | null;
+  iat: number;
+  exp: number;
+};
+
 /**
- * Generate a signed JWT token for license validation
+ * Generate a signed JWT token for license validation.
+ * `exp` / `offlineUntil` are the offline grace window (72h by default).
+ * `licenseExpiresAt` is the actual license end date (unix seconds) or null.
  */
 export function generateLicenseToken(payload: {
   licenseKey: string;
@@ -34,30 +81,38 @@ export function generateLicenseToken(payload: {
   deviceId: string;
   expiresAt?: Date | null;
   features?: string[];
+  offlineGraceHours?: number;
+  now?: Date;
 }): string {
-  const tokenPayload = {
+  const nowMs = payload.now?.getTime() ?? Date.now();
+  const window = computeOfflineWindow({
+    nowMs,
+    offlineGraceHours: payload.offlineGraceHours ?? DEFAULT_OFFLINE_GRACE_HOURS,
+    licenseExpiresAt: payload.expiresAt,
+  });
+
+  const tokenPayload: LicenseTokenClaims = {
     licenseKey: payload.licenseKey,
     productId: payload.productId,
     deviceId: payload.deviceId,
     features: payload.features || [],
-    iat: Math.floor(Date.now() / 1000),
+    offlineGraceHours: window.offlineGraceHours,
+    offlineUntil: window.offlineUntil,
+    licenseExpiresAt: window.licenseExpiresAt,
+    iat: Math.floor(nowMs / 1000),
+    exp: window.exp,
   };
 
-  // Set expiration based on license expiry or default to 7 days for offline validation
-  const expiresIn = payload.expiresAt 
-    ? Math.floor((payload.expiresAt.getTime() - Date.now()) / 1000)
-    : 7 * 24 * 60 * 60; // 7 days
-
-  return jwt.sign(tokenPayload, ENV.cookieSecret, { expiresIn });
+  return jwt.sign(tokenPayload, ENV.cookieSecret);
 }
 
 /**
  * Verify and decode a license token
  */
-export function verifyLicenseToken(token: string): any {
+export function verifyLicenseToken(token: string): LicenseTokenClaims {
   try {
-    return jwt.verify(token, ENV.cookieSecret);
-  } catch (error) {
+    return jwt.verify(token, ENV.cookieSecret) as LicenseTokenClaims;
+  } catch {
     throw new Error("Invalid or expired token");
   }
 }

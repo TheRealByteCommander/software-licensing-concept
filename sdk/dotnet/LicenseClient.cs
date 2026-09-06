@@ -98,20 +98,38 @@ public record DeactivateRequest(string LicenseKey, string DeviceId);
 public record Initiate2FARequest(string LicenseKey, string DeviceId, string? DeviceInfo = null);
 public record Confirm2FARequest(string ActivationToken, string TotpCode);
 
-public record ActivateResponse(bool Success, string Token, string Message);
+public record ActivateResponse(
+    bool Success,
+    string Token,
+    string Message,
+    List<string>? Features = null,
+    int? ProductId = null,
+    int? OfflineGraceHours = null,
+    string? OfflineUntil = null
+);
 public record DeactivateResponse(bool Success, string Message);
 public record Initiate2FAResponse(bool Success, string ActivationToken, int ExpiresIn);
-public record Confirm2FAResponse(bool Success, string Token, string Message);
+public record Confirm2FAResponse(
+    bool Success,
+    string Token,
+    string Message,
+    List<string>? Features = null,
+    int? OfflineGraceHours = null,
+    string? OfflineUntil = null
+);
 
 public record ValidateResponse(
     bool Valid,
     LicenseData? License,
-    string? Message
+    string? Message,
+    string? Token = null
 );
 
 public record LicenseData(
     int ProductId,
     string Type,
     DateTimeOffset? ExpiresAt,
-    List<string> Features
+    List<string> Features,
+    int? OfflineGraceHours = null,
+    string? OfflineUntil = null
 );

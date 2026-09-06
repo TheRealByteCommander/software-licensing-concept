@@ -140,3 +140,19 @@ catch (LicensingApiException ex)
 - Retry transient network errors (with backoff)
 - Log `error.code` for support diagnostics
 - Keep API contract pinned to `openapi.v1.yaml`
+
+## Feature flags + 72h offline grace
+
+`api.activate` and `api.validate` return the **merged** feature list: product **Default features** plus license `metadata.features`. A license that only stored `basic` still receives product flags such as `inspection`, `Trends`, and `Export`.
+
+JWT claims (and the JSON body) for offline clients:
+
+| Field | Meaning |
+|---|---|
+| `features` | string[] |
+| `offlineGraceHours` | `72` unless overridden in license metadata |
+| `offlineUntil` | ISO (body) or unix seconds (JWT) – same instant as JWT `exp` |
+| `licenseExpiresAt` | unix seconds of the real license end, or `null` |
+| `exp` | offline window, **not** the subscription end date |
+
+After a successful online `validate`, persist the returned `token` so the 72h window and current flags refresh.

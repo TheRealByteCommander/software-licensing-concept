@@ -240,8 +240,22 @@ components:
           enum: [true]
         token:
           type: string
+          description: JWT with features, offlineGraceHours (default 72), offlineUntil, licenseExpiresAt, exp
         message:
           type: string
+        features:
+          type: array
+          items:
+            type: string
+          description: Resolved feature flags (product defaults merged with license metadata)
+        productId:
+          type: integer
+        offlineGraceHours:
+          type: integer
+          description: Offline validation window in hours (default 72)
+        offlineUntil:
+          type: string
+          format: date-time
 
     ActivateResponseEnvelope:
       allOf:
@@ -281,6 +295,11 @@ components:
           type: array
           items:
             type: string
+        offlineGraceHours:
+          type: integer
+        offlineUntil:
+          type: string
+          format: date-time
 
     ValidateData:
       oneOf:
@@ -290,6 +309,9 @@ components:
             valid:
               type: boolean
               enum: [true]
+            token:
+              type: string
+              description: Refreshed JWT (72h offline window + current features)
             license:
               $ref: '#/components/schemas/ValidLicense'
         - type: object
@@ -408,6 +430,15 @@ components:
           type: string
         message:
           type: string
+        features:
+          type: array
+          items:
+            type: string
+        offlineGraceHours:
+          type: integer
+        offlineUntil:
+          type: string
+          format: date-time
 
     Confirm2FAResponseEnvelope:
       allOf:
