@@ -150,7 +150,7 @@ function DashboardLayoutContent({
                 <div className="relative h-8 w-8 shrink-0 group">
                   <img
                     src={APP_LOGO}
-                    className="h-8 w-8 rounded-md object-contain ring-1 ring-border"
+                    className="h-8 w-8 rounded-md bg-background object-contain ring-1 ring-border"
                     alt="Logo"
                   />
                   <button
@@ -165,7 +165,7 @@ function DashboardLayoutContent({
                   <div className="flex items-center gap-3 min-w-0">
                     <img
                       src={APP_LOGO}
-                      className="h-8 w-8 rounded-md object-contain ring-1 ring-border shrink-0"
+                      className="h-8 w-8 rounded-md bg-background object-contain ring-1 ring-border shrink-0"
                       alt="Logo"
                     />
                     <span className="font-semibold tracking-tight truncate">

@@ -156,7 +156,7 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-md space-y-6">
         <div className="flex flex-col items-center gap-3">
-          <img src={APP_LOGO} alt={APP_TITLE} className="h-16 w-16 rounded-xl object-contain shadow" />
+          <img src={APP_LOGO} alt={APP_TITLE} className="h-16 w-16 rounded-xl bg-background object-contain shadow" />
           <div className="text-center space-y-1">
             <h1 className="text-2xl font-bold tracking-tight">Byte Commander</h1>
             <p className="text-sm text-muted-foreground">License Server Administration</p>
