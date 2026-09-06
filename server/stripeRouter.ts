@@ -3,8 +3,11 @@ import { TRPCError } from "@trpc/server";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 import {
+  cancelSubscription,
   createCheckoutSession,
+  createCustomerPortalSession,
   getCheckoutResult,
+  getLicenseBilling,
   isStripeConfigured,
   parseBillingPlanFeatures,
   serializeBillingPlanFeatures,
@@ -188,5 +191,40 @@ export const stripeRouter = router({
     )
     .query(async ({ input }) => {
       return await getCheckoutResult(input);
+    }),
+
+  getLicenseBilling: publicProcedure
+    .input(
+      z.object({
+        licenseKey: z.string().min(1),
+        customerEmail: z.string().email(),
+      })
+    )
+    .query(async ({ input }) => {
+      return await getLicenseBilling(input);
+    }),
+
+  createCustomerPortalSession: publicProcedure
+    .input(
+      z.object({
+        licenseKey: z.string().min(1),
+        customerEmail: z.string().email(),
+        returnUrl: z.string().url(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await createCustomerPortalSession(input);
+    }),
+
+  cancelSubscription: publicProcedure
+    .input(
+      z.object({
+        licenseKey: z.string().min(1),
+        customerEmail: z.string().email(),
+        cancelAtPeriodEnd: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await cancelSubscription(input);
     }),
 });

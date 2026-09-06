@@ -58,6 +58,36 @@ export type GetCheckoutResultRequest = {
   email?: string;
 };
 
+export type GetLicenseBillingRequest = {
+  licenseKey: string;
+  customerEmail: string;
+};
+
+export type LicenseBilling = {
+  licenseKey: string;
+  productId: number;
+  status: string;
+  expiresAt: string | null;
+  features: string[];
+  hasStripeSubscription: boolean;
+  subscriptionStatus: string | null;
+  cancelAtPeriodEnd: boolean;
+  canCancel: boolean;
+  canOpenPortal: boolean;
+};
+
+export type CreateCustomerPortalSessionRequest = {
+  licenseKey: string;
+  customerEmail: string;
+  returnUrl: string;
+};
+
+export type CancelSubscriptionRequest = {
+  licenseKey: string;
+  customerEmail: string;
+  cancelAtPeriodEnd?: boolean;
+};
+
 export type Confirm2FARequest = {
   activationToken: string;
   totpCode: string;
@@ -201,6 +231,39 @@ export class LicenseClient {
 
   getCheckoutResult(input: GetCheckoutResultRequest): Promise<CheckoutResult> {
     return this.query<CheckoutResult>("/api/trpc/stripe.getCheckoutResult", input);
+  }
+
+  listPublicPlans() {
+    return this.query<
+      Array<{
+        id: number;
+        name: string;
+        productId: number;
+        productName: string;
+        billingModel: "subscription" | "one_time";
+        licenseType: LicenseType;
+        maxActivations: number | null;
+        renewalPeriodDays: number | null;
+        features: string[];
+      }>
+    >("/api/trpc/stripe.plans.listPublic", {});
+  }
+
+  getLicenseBilling(input: GetLicenseBillingRequest): Promise<LicenseBilling> {
+    return this.query<LicenseBilling>("/api/trpc/stripe.getLicenseBilling", input);
+  }
+
+  createCustomerPortalSession(input: CreateCustomerPortalSessionRequest): Promise<{ url: string | null }> {
+    return this.call<{ url: string | null }>("/api/trpc/stripe.createCustomerPortalSession", input);
+  }
+
+  cancelSubscription(input: CancelSubscriptionRequest): Promise<{
+    success: true;
+    cancelAtPeriodEnd: boolean;
+    status: string;
+    expiresAt: string | null;
+  }> {
+    return this.call("/api/trpc/stripe.cancelSubscription", input);
   }
 
   private async query<T>(path: string, input: Record<string, unknown>): Promise<T> {

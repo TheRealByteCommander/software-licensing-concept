@@ -10,6 +10,16 @@ describe("public license API paths", () => {
     expect(isPublicApiPath("/twoFA.confirmActivation")).toBe(true);
   });
 
+  it("keeps in-app Stripe buy/renew/cancel APIs public for product embeds", () => {
+    expect(isPublicApiPath("/stripe.status")).toBe(true);
+    expect(isPublicApiPath("/stripe.plans.listPublic")).toBe(true);
+    expect(isPublicApiPath("/stripe.createCheckoutSession")).toBe(true);
+    expect(isPublicApiPath("/stripe.getCheckoutResult")).toBe(true);
+    expect(isPublicApiPath("/stripe.getLicenseBilling")).toBe(true);
+    expect(isPublicApiPath("/stripe.createCustomerPortalSession")).toBe(true);
+    expect(isPublicApiPath("/stripe.cancelSubscription")).toBe(true);
+  });
+
   it("does not treat admin user management as a public path", () => {
     expect(isPublicApiPath("/users.list")).toBe(false);
     expect(isPublicApiPath("/users.setRole")).toBe(false);

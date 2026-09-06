@@ -47,7 +47,7 @@ export default function AdminUsers() {
       <div>
         <h1 className="text-3xl font-bold">Admin Users</h1>
         <p className="text-muted-foreground">
-          Portal accounts from the users table (OAuth sign-ins and the local admin identity)
+          Optional extra vendor admins for this license server. End customers do not get accounts here.
         </p>
       </div>
 
@@ -55,9 +55,9 @@ export default function AdminUsers() {
         <CardHeader>
           <CardTitle>Accounts</CardTitle>
           <CardDescription>
-            License holders are managed under Customers. This page is only for people who sign
-            into the admin portal. Local auth uses a single env-configured admin
-            (`LOCAL_AUTH_*`); additional admins come from OAuth sign-in, then a role change here.
+            Byte Commander staff only. Customers buy, renew, and cancel inside the product
+            (AnomalyMatrix) via the public Stripe APIs. Local auth is a single env admin
+            (`LOCAL_AUTH_*`); extra vendor admins sign in with OAuth, then get role admin here.
           </CardDescription>
         </CardHeader>
         <CardContent>

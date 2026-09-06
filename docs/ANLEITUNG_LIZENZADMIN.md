@@ -1,6 +1,8 @@
 # Anleitung für Lizenz-Administratoren
 
-Diese Anleitung beschreibt den **tatsächlichen Stand** des Byte Commander License Servers (Admin-Portal + Backend). Sie richtet sich an Personen, die Produkte, Lizenzen und Aktivierungen verwalten.
+Diese Anleitung beschreibt den **tatsächlichen Stand** des Byte Commander License Servers (Admin-Portal + Backend). Sie richtet sich an **Vendor-Admins** (Byte Commander) auf `licadmin.schmitz.ms`.
+
+**Produktmodell:** Endkunden kaufen, verlängern und kündigen Lizenzen **in ihrer Software** (z. B. AnomalyMatrix) über die öffentlichen Stripe-APIs. Es gibt **kein** Endkunden-Portal in licadmin. Customers im Admin sind nur Stammdaten der Lizenznehmer.
 
 ---
 
@@ -44,9 +46,9 @@ LOCAL_AUTH_EMAIL=admin@localhost
 | Activations | `/activations` | Geräte-Aktivierungen einsehen |
 | Webhooks | `/webhooks` | Outbound Event-Benachrichtigungen |
 | Billing | `/billing` | Stripe-Pläne und Zahlungshistorie |
-| Admin Users | `/admins` | Portal-Konten (`users`: Rolle, Sperren) |
+| Admin Users | `/admins` | Optional: weitere Vendor-Admins (nicht Endkunden) |
 
-Öffentliche Checkout-Seite für Endkunden: `/checkout`
+`/checkout` ist nur Stripe-Redirect/Testseite, kein Kundenportal.
 
 ---
 
@@ -199,7 +201,7 @@ Für Feature-Lizenzen Metadata beim Erstellen setzen:
 
 ## 5a. Admin Users (Portal-Konten)
 
-Unter **Admin Users** (`/admins`) werden Einträge der Tabelle `users` verwaltet – also Personen, die sich am Admin-Portal anmelden (OAuth oder lokaler Admin). **Customers** bleibt der Ort für Lizenznehmer.
+Unter **Admin Users** (`/admins`) werden nur **Vendor-Konten** der Tabelle `users` verwaltet (leichtgewichtig, optional). Endkunden bekommen hier **keine** Logins. **Customers** sind Lizenznehmer-Stammdaten, kein Self-Service.
 
 | Spalte | Bedeutung |
 |---|---|
@@ -332,11 +334,11 @@ Empfohlene Success-URL:
 
 ```mermaid
 flowchart LR
-  A[Kunde öffnet /checkout] --> B[Stripe Checkout]
+  A[AnomalyMatrix ruft öffentliche Stripe-API] --> B[Stripe Checkout / Portal]
   B --> C[Webhook checkout.session.completed]
   C --> D[Kunde + Lizenz angelegt]
   D --> E[Abonnement: invoice.paid verlängert]
-  E --> F[Kündigung: subscription.deleted widerruft Lizenz]
+  E --> F[Kündigung: cancelSubscription oder subscription.deleted]
 ```
 
 | Stripe-Event | Server-Aktion |
@@ -347,7 +349,18 @@ flowchart LR
 | `customer.subscription.deleted` | Lizenz widerrufen |
 | `customer.subscription.updated` | Bei Status `canceled`/`unpaid` Lizenz widerrufen |
 
-### Öffentliche API
+### Öffentliche API (ohne Admin-Session, für Einbettung in AnomalyMatrix)
+
+Alle folgenden Prozeduren sind `publicProcedure` und brauchen **keine** Vendor-Anmeldung. Authentifizierung für Renew/Cancel: `licenseKey` + Kauf-E-Mail.
+
+| Aktion | Prozedur |
+|---|---|
+| Pläne | `stripe.plans.listPublic` |
+| Kaufen / erneut kaufen | `stripe.createCheckoutSession` |
+| Lizenz nach Zahlung | `stripe.getCheckoutResult` |
+| Status | `stripe.getLicenseBilling` |
+| Zahlart / Portal (Renew, Rechnungen) | `stripe.createCustomerPortalSession` |
+| Abo kündigen | `stripe.cancelSubscription` (`cancelAtPeriodEnd` Standard: true) |
 
 `tRPC stripe.createCheckoutSession` (öffentlich):
 

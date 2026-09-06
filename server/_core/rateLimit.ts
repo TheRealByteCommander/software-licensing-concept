@@ -61,7 +61,12 @@ export function isPublicApiPath(path: string): boolean {
     path.startsWith("/api.deactivate") ||
     path.startsWith("/twoFA.initiateActivation") ||
     path.startsWith("/twoFA.confirmActivation") ||
+    path.startsWith("/stripe.status") ||
+    path.startsWith("/stripe.plans.listPublic") ||
     path.startsWith("/stripe.createCheckoutSession") ||
-    path.startsWith("/stripe.getCheckoutResult")
+    path.startsWith("/stripe.getCheckoutResult") ||
+    path.startsWith("/stripe.getLicenseBilling") ||
+    path.startsWith("/stripe.createCustomerPortalSession") ||
+    path.startsWith("/stripe.cancelSubscription")
   );
 }

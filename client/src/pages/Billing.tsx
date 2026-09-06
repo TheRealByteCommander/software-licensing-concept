@@ -300,7 +300,9 @@ export default function Billing() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Billing</h1>
-          <p className="text-muted-foreground">Stripe checkout plans and payment history</p>
+          <p className="text-muted-foreground">
+            Vendor plan catalog. Customers buy, renew, and cancel inside the product software, not here.
+          </p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)} disabled={!stripeStatus?.configured}>
           <Plus className="mr-2 h-4 w-4" />

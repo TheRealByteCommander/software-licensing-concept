@@ -378,7 +378,15 @@ Returns all activations for a specific license.
 
 ### Stripe Checkout (Public)
 
+These endpoints are for **embedding in the product** (AnomalyMatrix). They do **not** require an admin session. licadmin is vendor-only; there is no end-customer portal.
+
 Supports **subscription** and **one-time payment** billing plans. After payment, licenses are issued immediately and can be activated without waiting for email delivery.
+
+Renew/cancel (same public auth: `licenseKey` + purchase email):
+
+- `GET /api/trpc/stripe.getLicenseBilling`
+- `POST /api/trpc/stripe.createCustomerPortalSession` (`returnUrl` required)
+- `POST /api/trpc/stripe.cancelSubscription` (`cancelAtPeriodEnd` defaults to true)
 
 #### List Public Billing Plans
 

@@ -6,6 +6,7 @@ import * as db from "./db";
 import { generateLicenseKey } from "./licenseUtils";
 import { buildLicenseMetadata, parseLicenseMetadata, resolveLicenseFeatures } from "./licensePolicy";
 import { dispatchWebhookEvent } from "./webhooks";
+import { assertLicenseOwnedByEmail } from "./stripeCustomerAccess";
 
 let stripeClient: Stripe | null = null;
 
@@ -224,13 +225,16 @@ export async function createCheckoutSession(input: {
 
   const mode = getCheckoutMode(plan);
   const metadata = { billingPlanId: String(plan.id) };
+  const existingCustomer = await db.getCustomerByEmail(input.customerEmail);
 
   const session = await stripe.checkout.sessions.create({
     mode,
     line_items: [{ price: plan.stripePriceId, quantity: 1 }],
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
-    customer_email: input.customerEmail,
+    ...(existingCustomer?.stripeCustomerId
+      ? { customer: existingCustomer.stripeCustomerId }
+      : { customer_email: input.customerEmail }),
     metadata,
     subscription_data:
       mode === "subscription"
@@ -524,6 +528,125 @@ export async function handleInvoicePaid(invoice: Stripe.Invoice) {
   }
 
   return { handled: true, licenseKey: license.licenseKey, duplicate: false };
+}
+
+export async function getLicenseBilling(input: { licenseKey: string; customerEmail: string }) {
+  const { license, customer } = await assertLicenseOwnedByEmail(input.licenseKey, input.customerEmail);
+  const product = await db.getProductById(license.productId);
+  const metadata = parseLicenseMetadata(license.metadata);
+  const features = resolveLicenseFeatures(product?.defaultFeatures, metadata.features);
+
+  let subscriptionStatus: string | null = null;
+  let cancelAtPeriodEnd = false;
+  const stripe = getStripeClient();
+
+  if (license.stripeSubscriptionId && stripe) {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(license.stripeSubscriptionId);
+      subscriptionStatus = subscription.status;
+      cancelAtPeriodEnd = Boolean(subscription.cancel_at_period_end);
+    } catch {
+      subscriptionStatus = "unknown";
+    }
+  }
+
+  return {
+    licenseKey: license.licenseKey,
+    productId: license.productId,
+    status: license.status,
+    expiresAt: license.expiresAt ? new Date(license.expiresAt).toISOString() : null,
+    features,
+    hasStripeSubscription: Boolean(license.stripeSubscriptionId),
+    subscriptionStatus,
+    cancelAtPeriodEnd,
+    canCancel: Boolean(license.stripeSubscriptionId),
+    canOpenPortal: Boolean(customer.stripeCustomerId || license.stripeSubscriptionId),
+  };
+}
+
+export async function createCustomerPortalSession(input: {
+  licenseKey: string;
+  customerEmail: string;
+  returnUrl: string;
+}) {
+  const stripe = getStripeClient();
+  if (!stripe) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Stripe is not configured (STRIPE_SECRET_KEY missing)",
+    });
+  }
+
+  const { license, customer } = await assertLicenseOwnedByEmail(input.licenseKey, input.customerEmail);
+
+  let stripeCustomerId = customer.stripeCustomerId;
+  if (!stripeCustomerId && license.stripeSubscriptionId) {
+    const subscription = await stripe.subscriptions.retrieve(license.stripeSubscriptionId);
+    stripeCustomerId = typeof subscription.customer === "string"
+      ? subscription.customer
+      : subscription.customer?.id ?? null;
+    if (stripeCustomerId) {
+      await db.updateCustomer(customer.id, { stripeCustomerId });
+    }
+  }
+
+  if (!stripeCustomerId) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "No Stripe customer is linked to this license",
+    });
+  }
+
+  const session = await stripe.billingPortal.sessions.create({
+    customer: stripeCustomerId,
+    return_url: input.returnUrl,
+  });
+
+  return { url: session.url };
+}
+
+export async function cancelSubscription(input: {
+  licenseKey: string;
+  customerEmail: string;
+  cancelAtPeriodEnd?: boolean;
+}) {
+  const stripe = getStripeClient();
+  if (!stripe) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "Stripe is not configured (STRIPE_SECRET_KEY missing)",
+    });
+  }
+
+  const { license } = await assertLicenseOwnedByEmail(input.licenseKey, input.customerEmail);
+  if (!license.stripeSubscriptionId) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "This license has no Stripe subscription to cancel",
+    });
+  }
+
+  const cancelAtPeriodEnd = input.cancelAtPeriodEnd !== false;
+  if (cancelAtPeriodEnd) {
+    const subscription = await stripe.subscriptions.update(license.stripeSubscriptionId, {
+      cancel_at_period_end: true,
+    });
+    const periodEnd = getSubscriptionPeriodEnd(subscription);
+    return {
+      success: true as const,
+      cancelAtPeriodEnd: true,
+      status: subscription.status,
+      expiresAt: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+    };
+  }
+
+  const subscription = await stripe.subscriptions.cancel(license.stripeSubscriptionId);
+  return {
+    success: true as const,
+    cancelAtPeriodEnd: false,
+    status: subscription.status,
+    expiresAt: license.expiresAt ? new Date(license.expiresAt).toISOString() : null,
+  };
 }
 
 export async function handleSubscriptionCanceled(subscription: Stripe.Subscription) {

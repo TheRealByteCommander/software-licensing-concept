@@ -52,11 +52,15 @@ from licensing_sdk import LicenseClientWith2FA
 
 ## Stripe purchase + immediate activation
 
+End customers buy / renew / cancel **inside the product** (AnomalyMatrix). licadmin is vendor-only — do not send customers there.
+
+All of these are public (no admin session). Rate-limited.
+
 1. List plans: `GET /api/trpc/stripe.plans.listPublic`
-2. Start checkout: `POST /api/trpc/stripe.createCheckoutSession`
-3. After Stripe redirect (use `session_id={CHECKOUT_SESSION_ID}` in success URL):
+2. Buy or repurchase: `POST /api/trpc/stripe.createCheckoutSession`
+3. After Stripe redirect (use `session_id={CHECKOUT_SESSION_ID}` in **your app** success URL):
    - `GET /api/trpc/stripe.getCheckoutResult?input={"json":{"sessionId":"cs_..."}}`
-4. Activate immediately:
+4. Activate immediately after payment:
 
 ```ts
 const purchase = await client.getCheckoutResult({ sessionId });
@@ -70,7 +74,27 @@ const activation = await client.activate({
 });
 ```
 
-Works for both **subscription** and **one-time** billing plans.
+5. Renew / update payment: `client.createCustomerPortalSession({ licenseKey, customerEmail, returnUrl })`
+6. Cancel: `client.cancelSubscription({ licenseKey, customerEmail })` (period-end by default)
+7. Status: `client.getLicenseBilling({ licenseKey, customerEmail })`
+
+Works for both **subscription** and **one-time** billing plans. Enable the Stripe Customer Portal in the Stripe Dashboard so step 5 can open.
+
+Add a short note in API_DOCUMENTATION after stripe section if there's a good place. And listPublicPlans - tRPC GET with empty input for a no-input procedure: I'll check if `{}` causes issues. Could use a dedicated fetch without input. Fine for now.
+
+Need to add getCustomerById to stripe.test mocks? createCheckoutSession now calls getCustomerByEmail - not in existing tests.
+
+stripe.ts getLicenseBilling uses getProductById - already mocked.
+
+Run tests. Also add API_DOCUMENTATION snippet.
+
+listPublic query with `{}` - if it fails at runtime that's ok for this PR.
+
+Fix unused import in stripe.ts? assertLicenseOwnedByEmail is used.
+
+Python - skip unless quick. TS SDK is enough.
+
+Run tests.
 
 ---
 
