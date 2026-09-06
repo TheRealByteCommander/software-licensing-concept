@@ -13,6 +13,7 @@ import Activations from "./pages/Activations";
 import Webhooks from "./pages/Webhooks";
 import Billing from "./pages/Billing";
 import Checkout from "./pages/Checkout";
+import AdminUsers from "./pages/AdminUsers";
 
 function Router() {
   return (
@@ -50,6 +51,11 @@ function Router() {
       <Route path={"/billing"}>
         <DashboardLayout>
           <Billing />
+        </DashboardLayout>
+      </Route>
+      <Route path={"/admins"}>
+        <DashboardLayout>
+          <AdminUsers />
         </DashboardLayout>
       </Route>
       <Route path={"/checkout"} component={Checkout} />

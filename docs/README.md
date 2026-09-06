@@ -4,7 +4,7 @@
 
 | Zielgruppe | Dokument | Inhalt |
 |---|---|---|
-| **Lizenz-Administrator** | [ANLEITUNG_LIZENZADMIN.md](./ANLEITUNG_LIZENZADMIN.md) | Produkte, Lizenzen, 2FA, Kunden, Aktivierungen |
+| **Lizenz-Administrator** | [ANLEITUNG_LIZENZADMIN.md](./ANLEITUNG_LIZENZADMIN.md) | Produkte (Product ID), Lizenzen, 2FA, Kunden, Admin Users, Aktivierungen |
 | **Software-Nutzer (Endanwender)** | [ANLEITUNG_SOFTWARENUTZER.md](./ANLEITUNG_SOFTWARENUTZER.md) | Lizenzschlüssel aktivieren, 2FA, Fehlerbehebung |
 | **Entwickler / Integration** | [../INTEGRATION_GUIDE.md](../INTEGRATION_GUIDE.md) | SDK-Einbindung (Python, Node, .NET) |
 | **Webhooks** | Admin-Portal `/webhooks` + [ANLEITUNG_LIZENZADMIN.md](./ANLEITUNG_LIZENZADMIN.md#9-webhooks-externe-integration) | Outbound Event-Benachrichtigungen |

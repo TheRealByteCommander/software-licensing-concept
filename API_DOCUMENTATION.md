@@ -250,6 +250,32 @@ Returns all products.
 }
 ```
 
+**Response:**
+
+```json
+{
+  "success": true,
+  "id": 1,
+  "name": "My Software"
+}
+```
+
+The numeric `id` is the Product ID used by SDKs and `api.activate` / `api.validate`.
+
+---
+
+### Admin Users
+
+Portal accounts in the `users` table (OAuth and local admin). Not license customers.
+
+| Endpoint | Access | Description |
+|---|---|---|
+| `GET /api/trpc/users.list` | admin | List id, name, email, role, loginMethod, lastSignedIn, disabled |
+| `POST /api/trpc/users.setRole` | admin | `{ id, role: "user" \| "admin" }` |
+| `POST /api/trpc/users.setDisabled` | admin | `{ id, disabled }` |
+
+Self-demotion, self-disable, and removing the last active admin are rejected.
+
 ---
 
 ### Licenses

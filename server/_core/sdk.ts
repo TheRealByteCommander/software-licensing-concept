@@ -1,5 +1,5 @@
 import { AXIOS_TIMEOUT_MS, COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
-import { ForbiddenError } from "@shared/_core/errors";
+import { ForbiddenError, HttpError } from "@shared/_core/errors";
 import axios, { type AxiosInstance } from "axios";
 import { parse as parseCookieHeader } from "cookie";
 import type { Request } from "express";
@@ -271,8 +271,16 @@ class SDKServer {
           lastSignedIn: new Date(),
         });
         const localUser = await db.getUserByOpenId(openId);
-        if (localUser) return localUser;
+        if (localUser) {
+          if (localUser.disabled) {
+            throw ForbiddenError("Account disabled");
+          }
+          return localUser;
+        }
       } catch (error) {
+        if (error instanceof HttpError && error.statusCode === 403) {
+          throw error;
+        }
         console.warn("[Auth] Local auth DB sync failed, using in-memory local user", error);
       }
 
@@ -284,6 +292,7 @@ class SDKServer {
         email: ENV.localAuthEmail || "admin@localhost",
         loginMethod: "local",
         role: "admin",
+        disabled: false,
         createdAt: new Date(),
         updatedAt: new Date(),
         lastSignedIn: new Date(),
@@ -323,6 +332,10 @@ class SDKServer {
 
     if (!user) {
       throw ForbiddenError("User not found");
+    }
+
+    if (user.disabled) {
+      throw ForbiddenError("Account disabled");
     }
 
     await db.upsertUser({

@@ -64,9 +64,8 @@ Das **Byte Commander License Server** ist ein umfassendes Lizenzverwaltungssyste
 - ✅ **2FA mit Google Authenticator:** TOTP-basierte Authentifizierung bei Lizenzaktivierung
 - ✅ **JWT-Token:** Sichere, signierte Tokens für Offline-Validierung
 - ✅ **Rate Limiting:** Schutz vor Brute-Force-Angriffen
-- ✅ **Token Blacklisting:** Verwaltung ungültiger Tokens
-- ✅ **HTTPS/TLS:** Verschlüsselte Kommunikation
-- ✅ **Sichere Speicherung:** Gehashed Passwörter, sichere Datenbank-Konfiguration
+- ✅ **HTTPS/TLS:** Verschlüsselte Kommunikation (über Reverse Proxy / Tunnel)
+- ✅ **Widerruf:** Lizenzstatus `revoked` verhindert weitere Aktivierung/Validierung
 
 ### Admin-Portal
 - ✅ **Dashboard:** Übersichtsstatistiken und Echtzeit-Metriken
@@ -75,12 +74,14 @@ Das **Byte Commander License Server** ist ein umfassendes Lizenzverwaltungssyste
 - ✅ **Kundenverwaltung:** Verwaltung von Kundeninformationen
 - ✅ **Aktivierungsverlauf:** Detaillierte Logs aller Aktivierungen
 - ✅ **2FA-Konfiguration:** Aktivieren/Deaktivieren von 2FA pro Produkt
+- ✅ **Product ID:** Sichtbare, kopierbare numerische Produkt-ID für Integratoren
+- ✅ **Admin Users:** Portal-Konten auflisten, Rolle setzen, Konten sperren
 
 ### Integration
 - ✅ **Python SDK:** Vollständige Python-Bibliothek mit 2FA-Unterstützung
 - ✅ **REST API:** Standardisierte API-Endpoints
 - ✅ **tRPC:** Type-safe RPC für Web-Anwendungen
-- ✅ **Webhook-Support:** (Geplant) Ereignisbenachrichtigungen
+- ✅ **Webhook-Support:** Outbound Events im Admin-Portal (`/webhooks`)
 
 ---
 
@@ -404,7 +405,7 @@ if activation_result['success']:
 - ✅ **TOTP (Time-based One-Time Password):** Zeitbasierte Codes, gültig für 30 Sekunden
 - ✅ **Aktivierungstoken:** 10-Minuten-Ablauf für zusätzliche Sicherheit
 - ✅ **Brute-Force-Schutz:** Rate Limiting bei fehlgeschlagenen Versuchen
-- ✅ **Backup-Codes:** (Geplant) Wiederherstellungscodes für den Fall, dass Authenticator verloren geht
+- ✅ **Backup-Codes:** Wiederherstellungscodes bei der 2FA-Einrichtung im Admin-Portal
 
 ---
 
@@ -894,8 +895,8 @@ sudo systemctl start license-server
 
 Das System verwendet folgende Tabellen:
 
-- **users:** Benutzer und Admin-Konten
-- **products:** Verwaltete Produkte
+- **users:** Portal-Konten (OAuth/local admin), inkl. Rolle und `disabled`
+- **products:** Verwaltete Produkte (numerische Product ID)
 - **licenses:** Lizenzinformationen
 - **activations:** Aktivierungsverlauf
 - **customers:** Kundeninformationen
@@ -980,12 +981,12 @@ pnpm format
 2. **HTTPS:** Verwenden Sie immer HTTPS in Produktion
 3. **Rate Limiting:** Das System implementiert automatisches Rate Limiting
 4. **Token-Ablauf:** Tokens haben ein Ablaufdatum
-5. **Sichere Speicherung:** Passwörter werden gehashed
+5. **Localhost-Bind:** Standard `HOST=127.0.0.1`, damit Port 3000 nicht öffentlich erreichbar ist
 
 ### Sicherheitsfeatures
 
 - ✅ **JWT-Signatur:** Alle Tokens sind digital signiert
-- ✅ **Token-Blacklisting:** Ungültige Tokens werden verwaltet
+- ✅ **Lizenz-Widerruf:** Status `revoked` statt Token-Blacklist
 - ✅ **CORS:** Konfigurierbare Cross-Origin-Anfragen
 - ✅ **SQL-Injection-Schutz:** Drizzle ORM schützt automatisch
 - ✅ **XSS-Schutz:** React sanitiert automatisch

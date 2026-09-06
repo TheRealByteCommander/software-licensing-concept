@@ -30,6 +30,7 @@ import {
   metadataFromForm,
   type LicenseFormState,
 } from "@/lib/licenseForm";
+import { formatProductLabel } from "@shared/productLabel";
 
 export default function Licenses() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -43,7 +44,10 @@ export default function Licenses() {
   const { data: customers } = trpc.customers.list.useQuery();
 
   const productOptions =
-    products?.map(product => ({ id: product.id, label: product.name })) ?? [];
+    products?.map(product => ({
+      id: product.id,
+      label: formatProductLabel(product.id, product.name),
+    })) ?? [];
   const customerOptions =
     customers?.map(customer => ({
       id: customer.id,
@@ -204,7 +208,13 @@ export default function Licenses() {
                           </Button>
                         </div>
                       </TableCell>
-                      <TableCell>{product?.name || "—"}</TableCell>
+                      <TableCell>
+                        {product
+                          ? formatProductLabel(product.id, product.name)
+                          : license.productId
+                            ? formatProductLabel(license.productId)
+                            : "—"}
+                      </TableCell>
                       <TableCell>{customerLabel(license.customerId)}</TableCell>
                       <TableCell className="capitalize">{license.type.replace("_", " ")}</TableCell>
                       <TableCell>{getStatusBadge(license.status)}</TableCell>

@@ -38,12 +38,13 @@ LOCAL_AUTH_EMAIL=admin@localhost
 | Menüpunkt | Pfad | Funktion |
 |---|---|---|
 | Dashboard | `/` | Kennzahlen, letzte Aktivierungen, Lizenzstatus |
-| Products | `/products` | Software-Produkte verwalten |
+| Products | `/products` | Software-Produkte verwalten (sichtbare, kopierbare **Product ID**) |
 | Licenses | `/licenses` | Lizenzschlüssel erstellen und widerrufen |
-| Customers | `/customers` | Kundenstammdaten |
+| Customers | `/customers` | Kundenstammdaten (Lizenznehmer, keine Portal-Logins) |
 | Activations | `/activations` | Geräte-Aktivierungen einsehen |
 | Webhooks | `/webhooks` | Outbound Event-Benachrichtigungen |
 | Billing | `/billing` | Stripe-Pläne und Zahlungshistorie |
+| Admin Users | `/admins` | Portal-Konten (`users`: Rolle, Sperren) |
 
 Öffentliche Checkout-Seite für Endkunden: `/checkout`
 
@@ -67,8 +68,16 @@ flowchart LR
    - **Name** – z. B. `Meine Desktop-App`
    - **Description** – Kurzbeschreibung (optional)
 3. **Create** klicken
+4. Im Erfolgsdialog die **Product ID** kopieren (auch als Toast `Product created. ID: …`)
 
-> Die Produkt-ID (interne Nummer) wird automatisch vergeben und wird für SDK-Integrationen benötigt.
+**Wo finde ich die Product ID?**
+
+- Spalte **Product ID** auf **Products** (Monospace + Copy-Button)
+- Nach dem Anlegen im Dialog **Product created**
+- Im Edit-Dialog des Produkts
+- In den Produkt-Auswahlen unter **Licenses**, **Billing** und **Activations** als `ID · Name`
+
+Integratoren und die öffentliche API (`api.activate` / `api.validate`) verwenden diese numerische ID als `productId`. Es gibt derzeit keinen separaten Product-Slug.
 
 ### Schritt 2: 2FA einrichten (optional, empfohlen für sensible Produkte)
 
@@ -95,7 +104,7 @@ flowchart LR
 2. **Email** (Pflicht), **Name**, **Company** (optional)
 3. Speichern
 
-> Kunden können auch erst nachträglich zugeordnet werden. Die Lizenz-Erstellung im UI verknüpft derzeit **keinen** Kunden direkt – Zuordnung erfolgt über die API (`customerId`).
+> Kunden (Lizenznehmer) sind **keine** Admin-Portal-Logins. Beim Erstellen und Bearbeiten einer Lizenz kann ein Kunde direkt zugeordnet werden.
 
 ### Schritt 4: Lizenz erstellen
 
@@ -170,6 +179,36 @@ Für Feature-Lizenzen Metadata beim Erstellen setzen:
 | `grace_period` | Manuell gesetzter Kulanzstatus | Über API aktualisieren |
 
 **Lizenz widerrufen:** Licenses → **Revoke** (Bestätigung) → alle künftigen Validierungen schlagen fehl.
+
+---
+
+## 5a. Admin Users (Portal-Konten)
+
+Unter **Admin Users** (`/admins`) werden Einträge der Tabelle `users` verwaltet – also Personen, die sich am Admin-Portal anmelden (OAuth oder lokaler Admin). **Customers** bleibt der Ort für Lizenznehmer.
+
+| Spalte | Bedeutung |
+|---|---|
+| ID, Name, Email | Portal-Konto |
+| Role | `admin` (volle Portal-Rechte) oder `user` |
+| Login | `local` oder OAuth-Methode (`loginMethod`) |
+| Last signed in | Letzte erfolgreiche Anmeldung |
+| Status | Active / Disabled |
+
+**Rechte (nur Admins):**
+
+- Rolle `user` / `admin` setzen
+- Konto sperren oder wieder aktivieren (`users.disabled`)
+- Eigenes Konto kann nicht selbst gesperrt oder degradiert werden
+- Der letzte aktive Admin kann nicht entfernt werden
+
+### Lokaler Admin (Self-Hosting)
+
+`LOCAL_AUTH` verwendet **ein** über die Umgebung definiertes Admin-Konto (`LOCAL_AUTH_OPEN_ID` / `NAME` / `EMAIL`). Dieses Konto erscheint in der Liste (wird beim Öffnen der Seite angelegt, falls noch nicht vorhanden).
+
+- Zusätzliche Portal-Admins: OAuth-Nutzer anmelden lassen, dann hier auf `admin` setzen
+- Passwort/TOTP-Reset für den lokalen Admin ist **kein** Bestandteil dieser Seite (würde den TOTP-Login-Flow berühren). Passwort + TOTP liegen im separaten Local-Auth-Setup, nicht in `users`
+
+Gesperrte Konten erhalten keine Admin-Session mehr. Die öffentliche Lizenz-API bleibt ohne Admin-Session erreichbar.
 
 ---
 
@@ -378,9 +417,12 @@ Unter **Activations** können Einträge nach Produkt, Status (Active/Deactivated
 ## 14. Checkliste vor Go-Live
 
 - [ ] `JWT_SECRET` gesetzt (min. 32 Zeichen, zufällig)
-- [ ] `DATABASE_URL` erreichbar, `pnpm db:push` ausgeführt
-- [ ] HTTPS aktiv (Reverse Proxy)
+- [ ] `DATABASE_URL` erreichbar, `pnpm db:push` ausgeführt (inkl. `users.disabled`)
+- [ ] HTTPS aktiv (Reverse Proxy / Cloudflare Tunnel)
+- [ ] `HOST=127.0.0.1` (Standard) – Origin nicht öffentlich binden
 - [ ] OAuth konfiguriert oder lokaler Admin-Modus bewusst gewählt
+- [ ] Product ID des ersten Produkts notiert / an Integratoren übergeben
+- [ ] Admin Users geprüft (Rolle, kein unbeabsichtigt gesperrter Admin)
 - [ ] Erstes Produkt + Testlizenz erstellt
 - [ ] Testaktivierung mit SDK oder Kunden-Software erfolgreich
 - [ ] 2FA getestet (falls produktiv erforderlich)

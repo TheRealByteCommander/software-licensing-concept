@@ -10,6 +10,7 @@ import {
   serializeBillingPlanFeatures,
 } from "./stripe";
 import { ENV } from "./_core/env";
+import { formatProductLabel } from "@shared/productLabel";
 
 const billingModelSchema = z.enum(["subscription", "one_time"]);
 
@@ -55,7 +56,7 @@ export const stripeRouter = router({
 
       return plans.map(plan => ({
         ...plan,
-        productName: productNameById.get(plan.productId) ?? `Product #${plan.productId}`,
+        productName: formatProductLabel(plan.productId, productNameById.get(plan.productId)),
         features: parseBillingPlanFeatures(plan.features),
       }));
     }),

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { formatProductLabel } from "@shared/productLabel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -82,7 +83,11 @@ export default function Billing() {
   const { data: payments, isLoading: paymentsLoading } = trpc.stripe.payments.list.useQuery();
 
   const productOptions = useMemo(
-    () => (products ?? []).map(product => ({ id: product.id, label: product.name })),
+    () =>
+      (products ?? []).map(product => ({
+        id: product.id,
+        label: formatProductLabel(product.id, product.name),
+      })),
     [products]
   );
 

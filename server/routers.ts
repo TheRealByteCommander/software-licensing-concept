@@ -1,9 +1,10 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
+import { evaluateAdminUserChange } from "@shared/adminUsers";
 import { generateLicenseKey, generateLicenseToken, verifyLicenseToken } from "./licenseUtils";
 import { TRPCError } from "@trpc/server";
 import { twoFARouter } from "./twoFARouter";
@@ -44,8 +45,8 @@ export const appRouter = router({
         description: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
-        await db.createProduct(input);
-        return { success: true };
+        const id = await db.createProduct(input);
+        return { success: true, id, name: input.name };
       }),
     
     update: protectedProcedure
@@ -367,6 +368,70 @@ export const appRouter = router({
           name: input.name,
           company: input.company,
         });
+        return { success: true };
+      }),
+  }),
+
+  // Admin portal accounts (OAuth + local-auth users table). Not license customers.
+  users: router({
+    list: adminProcedure.query(async () => {
+      await db.ensureLocalAdminUser();
+      return await db.getAllUsers();
+    }),
+
+    setRole: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        role: z.enum(["user", "admin"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const [target, allUsers] = await Promise.all([
+          db.getUserById(input.id),
+          db.getAllUsers(),
+        ]);
+        if (!target) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        }
+
+        const decision = evaluateAdminUserChange({
+          actorId: ctx.user.id,
+          target,
+          users: allUsers,
+          action: { type: "setRole", role: input.role },
+        });
+        if (!decision.ok) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: decision.message });
+        }
+
+        await db.updateUser(input.id, { role: input.role });
+        return { success: true };
+      }),
+
+    setDisabled: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        disabled: z.boolean(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const [target, allUsers] = await Promise.all([
+          db.getUserById(input.id),
+          db.getAllUsers(),
+        ]);
+        if (!target) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        }
+
+        const decision = evaluateAdminUserChange({
+          actorId: ctx.user.id,
+          target,
+          users: allUsers,
+          action: { type: "setDisabled", disabled: input.disabled },
+        });
+        if (!decision.ok) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: decision.message });
+        }
+
+        await db.updateUser(input.id, { disabled: input.disabled });
         return { success: true };
       }),
   }),

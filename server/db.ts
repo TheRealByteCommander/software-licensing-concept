@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, products, licenses, activations, customers, twoFASecrets, activationTokens, webhooks, billingPlans, stripeEvents, stripePayments, InsertProduct, InsertLicense, InsertActivation, InsertCustomer, InsertTwoFASecret, InsertActivationToken, InsertWebhook, InsertBillingPlan, InsertStripeEvent, InsertStripePayment } from "../drizzle/schema";
 import { and, desc, isNull, eq } from "drizzle-orm";
 import { ENV } from './_core/env';
+import { mysqlInsertId } from "./mysqlInsert";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -60,6 +61,11 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       updateSet.role = 'admin';
     }
 
+    if (user.disabled !== undefined) {
+      values.disabled = user.disabled;
+      updateSet.disabled = user.disabled;
+    }
+
     if (!values.lastSignedIn) {
       values.lastSignedIn = new Date();
     }
@@ -89,12 +95,51 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user: database not available");
+    return undefined;
+  }
+
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getAllUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(users).orderBy(desc(users.createdAt));
+}
+
+export async function updateUser(id: number, data: Partial<InsertUser>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set(data).where(eq(users.id, id));
+}
+
+/** Ensure the env-configured local admin row exists so it appears in Admin Users. */
+export async function ensureLocalAdminUser() {
+  const oauthConfigured = Boolean(ENV.oAuthServerUrl && ENV.appId);
+  if (!ENV.localAuthEnabled && oauthConfigured) {
+    return;
+  }
+
+  await upsertUser({
+    openId: ENV.localAuthOpenId || "local-admin",
+    name: ENV.localAuthName || "Local Admin",
+    email: ENV.localAuthEmail || "admin@localhost",
+    loginMethod: "local",
+    role: "admin",
+  });
+}
+
 // ========== Products ==========
-export async function createProduct(product: InsertProduct) {
+export async function createProduct(product: InsertProduct): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const result = await db.insert(products).values(product);
-  return result;
+  return mysqlInsertId(result);
 }
 
 export async function getAllProducts() {
