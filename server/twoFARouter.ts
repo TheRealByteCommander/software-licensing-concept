@@ -4,7 +4,7 @@ import * as db from "./db";
 import { generateTwoFASecret, generateQRCodeDataUrl, verifyTOTP, generateBackupCodes } from "./twoFAUtils";
 import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
-import { prepareLicenseForUse } from "./licenseFlow";
+import { prepareLicenseForUse, resolveExpectedProductId } from "./licenseFlow";
 import { dispatchWebhookEvent } from "./webhooks";
 import { buildLicenseAccessGrant, toActivationPayload } from "./licenseGrant";
 
@@ -101,14 +101,18 @@ export const twoFARouter = router({
   /**
    * Initiate license activation (returns activation token)
    */
-  initiateActivation: publicProcedure
+    initiateActivation: publicProcedure
     .input(z.object({
       licenseKey: z.string(),
       deviceId: z.string(),
       deviceInfo: z.string().optional(),
+      productId: z.number().int().positive().optional(),
+      expectedProductId: z.number().int().positive().optional(),
     }))
     .mutation(async ({ input }) => {
-      const { license } = await prepareLicenseForUse(input.licenseKey);
+      const { license } = await prepareLicenseForUse(input.licenseKey, {
+        expectedProductId: resolveExpectedProductId(input),
+      });
 
       const product = await db.getProductById(license.productId);
       if (!product) {

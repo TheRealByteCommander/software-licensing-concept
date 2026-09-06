@@ -167,7 +167,7 @@ catch (LicensingApiException ex)
 
 ## Feature flags + 72h offline grace
 
-`api.activate` and `api.validate` return the **merged** feature list: product **Default features** plus license `metadata.features`. A license that only stored `basic` still receives product flags such as `inspection`, `Trends`, and `Export`.
+`api.activate` and `api.validate` treat a non-empty license `metadata.features` list as **authoritative** (no union with product defaults). Missing or empty metadata falls back to the product **Default features**, then `["basic"]`. Send optional `productId` or `expectedProductId` so a key bound to another product is rejected.
 
 JWT claims (and the JSON body) for offline clients:
 

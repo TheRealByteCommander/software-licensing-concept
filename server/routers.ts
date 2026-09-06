@@ -13,7 +13,7 @@ import { twoFARouter } from "./twoFARouter";
 import { webhooksRouter } from "./webhooksRouter";
 import { stripeRouter } from "./stripeRouter";
 import { isActivationStale } from "./licensePolicy";
-import { prepareLicenseForUse, licensesToCsv } from "./licenseFlow";
+import { prepareLicenseForUse, licensesToCsv, resolveExpectedProductId } from "./licenseFlow";
 import { dispatchWebhookEvent } from "./webhooks";
 import type { Product } from "../drizzle/schema";
 
@@ -197,9 +197,13 @@ export const appRouter = router({
         licenseKey: z.string(),
         deviceId: z.string(),
         deviceInfo: z.string().optional(),
+        productId: z.number().int().positive().optional(),
+        expectedProductId: z.number().int().positive().optional(),
       }))
       .mutation(async ({ input }) => {
-        const { license, metadata } = await prepareLicenseForUse(input.licenseKey);
+        const { license, metadata } = await prepareLicenseForUse(input.licenseKey, {
+          expectedProductId: resolveExpectedProductId(input),
+        });
 
         const product = await db.getProductById(license.productId);
         if (!product) {
@@ -272,11 +276,15 @@ export const appRouter = router({
     validate: publicProcedure
       .input(z.object({
         token: z.string(),
+        productId: z.number().int().positive().optional(),
+        expectedProductId: z.number().int().positive().optional(),
       }))
       .mutation(async ({ input }) => {
         try {
           const decoded = verifyLicenseToken(input.token);
-          const { license } = await prepareLicenseForUse(decoded.licenseKey);
+          const { license } = await prepareLicenseForUse(decoded.licenseKey, {
+            expectedProductId: resolveExpectedProductId(input),
+          });
 
           const activation = await db.getActivationByDeviceAndLicense(
             decoded.licenseKey,

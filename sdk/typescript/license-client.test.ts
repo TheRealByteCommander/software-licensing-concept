@@ -26,6 +26,7 @@ describe("LicenseClient", () => {
     const result = await client.activate({
       licenseKey: "AAAA-BBBB-CCCC-DDDD",
       deviceId: "dev-1",
+      productId: 2,
     });
 
     expect(result.success).toBe(true);
@@ -37,6 +38,7 @@ describe("LicenseClient", () => {
       json: {
         licenseKey: "AAAA-BBBB-CCCC-DDDD",
         deviceId: "dev-1",
+        productId: 2,
       },
     });
   });

@@ -5,7 +5,32 @@ import { isLicenseExpired, getRenewalUpdateIfEligible } from "./licenseRenewal";
 import { parseLicenseMetadata, type LicenseMetadata } from "./licensePolicy";
 import { dispatchWebhookEvent } from "./webhooks";
 
-export async function prepareLicenseForUse(licenseKey: string): Promise<{
+/** Accepts either `productId` or `expectedProductId` from activate/validate clients. */
+export function resolveExpectedProductId(input: {
+  productId?: number;
+  expectedProductId?: number;
+}): number | undefined {
+  const expected = input.expectedProductId ?? input.productId;
+  return typeof expected === "number" && Number.isFinite(expected) ? expected : undefined;
+}
+
+export function assertLicenseMatchesProduct(
+  licenseProductId: number,
+  expectedProductId?: number
+): void {
+  if (expectedProductId == null) return;
+  if (licenseProductId !== expectedProductId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `License belongs to product ${licenseProductId}, expected ${expectedProductId}`,
+    });
+  }
+}
+
+export async function prepareLicenseForUse(
+  licenseKey: string,
+  options?: { expectedProductId?: number }
+): Promise<{
   license: License;
   metadata: LicenseMetadata;
 }> {
@@ -13,6 +38,8 @@ export async function prepareLicenseForUse(licenseKey: string): Promise<{
   if (!current) {
     throw new TRPCError({ code: "NOT_FOUND", message: "License not found" });
   }
+
+  assertLicenseMatchesProduct(current.productId, options?.expectedProductId);
 
   if (current.status === "revoked") {
     throw new TRPCError({ code: "FORBIDDEN", message: `License is ${current.status}` });

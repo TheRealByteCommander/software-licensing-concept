@@ -81,10 +81,13 @@ Activate a license on a specific device.
   "json": {
     "licenseKey": "XXXX-XXXX-XXXX-XXXX",
     "deviceId": "unique-device-identifier",
-    "deviceInfo": "{\"platform\":\"Linux\",\"version\":\"5.15.0\"}"
+    "deviceInfo": "{\"platform\":\"Linux\",\"version\":\"5.15.0\"}",
+    "productId": 2
   }
 }
 ```
+
+`productId` and `expectedProductId` are optional. If either is sent and the license belongs to a different product, activation fails with `FORBIDDEN`.
 
 **Response (Success):**
 
@@ -122,7 +125,7 @@ Activate a license on a specific device.
 
 **Error Codes:**
 - `NOT_FOUND`: License key not found
-- `FORBIDDEN`: License is expired, revoked, or maximum activations reached
+- `FORBIDDEN`: License is expired, revoked, bound to another product, or maximum activations reached
 
 ---
 
@@ -137,10 +140,13 @@ Validate an existing license token.
 ```json
 {
   "json": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "productId": 2
   }
 }
 ```
+
+Optional `productId` / `expectedProductId` reject tokens whose license belongs to another product (`valid: false`).
 
 **Response (Valid):**
 

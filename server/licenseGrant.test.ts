@@ -9,19 +9,28 @@ import { buildLicenseAccessGrant } from "./licenseGrant";
 import type { License, Product } from "../drizzle/schema";
 
 describe("resolveLicenseFeatures", () => {
-  it("merges product defaults with license extras and keeps Trends/Export casing", () => {
+  it("treats a non-empty license feature list as authoritative", () => {
+    expect(resolveLicenseFeatures(["basic", "inspection", "Trends", "Export"], ["basic"])).toEqual([
+      "basic",
+    ]);
     expect(
       resolveLicenseFeatures(["basic", "inspection"], ["basic", "Trends", "Export"])
-    ).toEqual(["basic", "inspection", "Trends", "Export"]);
+    ).toEqual(["basic", "Trends", "Export"]);
   });
 
-  it("uses product defaults when the license only stored basic", () => {
-    expect(resolveLicenseFeatures(["basic", "inspection", "Trends", "Export"], ["basic"])).toEqual([
+  it("falls back to product defaults when license features are missing or empty", () => {
+    expect(resolveLicenseFeatures(["basic", "inspection", "Trends", "Export"], [])).toEqual([
       "basic",
       "inspection",
       "Trends",
       "Export",
     ]);
+    expect(resolveLicenseFeatures(["basic", "Trends"], undefined)).toEqual(["basic", "Trends"]);
+  });
+
+  it("falls back to basic when both sources are empty", () => {
+    expect(resolveLicenseFeatures([], [])).toEqual(["basic"]);
+    expect(resolveLicenseFeatures(undefined, undefined)).toEqual(["basic"]);
   });
 
   it("parses JSON or comma-separated product defaults", () => {
@@ -70,8 +79,18 @@ describe("generateLicenseToken claims", () => {
 });
 
 describe("buildLicenseAccessGrant", () => {
-  it("returns merged features and ISO offlineUntil for activate/validate", () => {
-    const license = {
+  const product = {
+    id: 2,
+    name: "AnomalyMatrix",
+    description: null,
+    require2FA: false,
+    defaultFeatures: JSON.stringify(["basic", "inspection", "Trends", "Export"]),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } as Product;
+
+  function licenseWithMetadata(metadata: string | null): License {
+    return {
       id: 1,
       licenseKey: "AAAA-BBBB-CCCC-DDDD",
       productId: 2,
@@ -81,30 +100,32 @@ describe("buildLicenseAccessGrant", () => {
       status: "active",
       maxActivations: 1,
       expiresAt: null,
-      metadata: JSON.stringify({ features: ["basic"] }),
+      metadata,
       createdAt: new Date(),
       updatedAt: new Date(),
     } as License;
+  }
 
-    const product = {
-      id: 2,
-      name: "AnomalyMatrix",
-      description: null,
-      require2FA: false,
-      defaultFeatures: JSON.stringify(["basic", "inspection", "Trends", "Export"]),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as Product;
-
+  it("keeps a BASIC license at metadata features only", () => {
     const grant = buildLicenseAccessGrant({
-      license,
+      license: licenseWithMetadata(JSON.stringify({ features: ["basic"] })),
+      product,
+      deviceId: "dev-1",
+    });
+
+    expect(grant.features).toEqual(["basic"]);
+    expect(grant.offlineGraceHours).toBe(72);
+    expect(Date.parse(grant.offlineUntil)).toBeGreaterThan(Date.now());
+    expect(verifyLicenseToken(grant.token).features).toEqual(grant.features);
+  });
+
+  it("uses product defaults when license metadata has no features", () => {
+    const grant = buildLicenseAccessGrant({
+      license: licenseWithMetadata(null),
       product,
       deviceId: "dev-1",
     });
 
     expect(grant.features).toEqual(["basic", "inspection", "Trends", "Export"]);
-    expect(grant.offlineGraceHours).toBe(72);
-    expect(Date.parse(grant.offlineUntil)).toBeGreaterThan(Date.now());
-    expect(verifyLicenseToken(grant.token).features).toEqual(grant.features);
   });
 });

@@ -51,18 +51,24 @@ export function serializeFeatureList(features?: unknown): string | undefined {
   return normalized.length > 0 ? JSON.stringify(normalized) : undefined;
 }
 
+/** Last-resort feature set when neither license metadata nor product defaults list any flags. */
+export const DEFAULT_LICENSE_FEATURES = ["basic"];
+
 /**
- * Product defaults plus license extras.
- * A license that only stored `basic` still picks up product flags such as Trends/Export.
+ * License `metadata.features` is authoritative when non-empty (no union with product defaults).
+ * Missing or empty metadata falls back to product `defaultFeatures`, then `["basic"]`.
  */
 export function resolveLicenseFeatures(
   productDefaults?: unknown,
   licenseFeatures?: unknown
 ): string[] {
-  return normalizeFeatureList([
-    ...normalizeFeatureList(productDefaults),
-    ...normalizeFeatureList(licenseFeatures),
-  ]);
+  const fromLicense = normalizeFeatureList(licenseFeatures);
+  if (fromLicense.length > 0) {
+    return fromLicense;
+  }
+
+  const fromProduct = normalizeFeatureList(productDefaults);
+  return fromProduct.length > 0 ? fromProduct : [...DEFAULT_LICENSE_FEATURES];
 }
 
 export function normalizeOfflineGraceHours(value?: unknown): number {

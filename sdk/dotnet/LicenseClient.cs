@@ -92,10 +92,22 @@ public sealed class LicensingApiException : Exception
     }
 }
 
-public record ActivateRequest(string LicenseKey, string DeviceId, string? DeviceInfo = null);
-public record ValidateRequest(string Token);
+public record ActivateRequest(
+    string LicenseKey,
+    string DeviceId,
+    string? DeviceInfo = null,
+    int? ProductId = null,
+    int? ExpectedProductId = null
+);
+public record ValidateRequest(string Token, int? ProductId = null, int? ExpectedProductId = null);
 public record DeactivateRequest(string LicenseKey, string DeviceId);
-public record Initiate2FARequest(string LicenseKey, string DeviceId, string? DeviceInfo = null);
+public record Initiate2FARequest(
+    string LicenseKey,
+    string DeviceId,
+    string? DeviceInfo = null,
+    int? ProductId = null,
+    int? ExpectedProductId = null
+);
 public record Confirm2FARequest(string ActivationToken, string TotpCode);
 
 public record ActivateResponse(

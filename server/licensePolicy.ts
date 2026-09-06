@@ -6,6 +6,7 @@ export {
   resolveLicenseFeatures,
   normalizeFeatureList,
   DEFAULT_OFFLINE_GRACE_HOURS,
+  DEFAULT_LICENSE_FEATURES,
 } from "@shared/licenseMetadata";
 
 export function isActivationStale(
