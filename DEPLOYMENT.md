@@ -25,6 +25,8 @@ The following environment variables are automatically configured by the BC platf
 - `LOCAL_AUTH_ENABLED`: Set to `true` for explicit local admin mode (optional)
 - `LOCAL_AUTH_OPEN_ID`, `LOCAL_AUTH_NAME`, `LOCAL_AUTH_EMAIL`: Local admin identity
 - `RATE_LIMIT_MAX_REQUESTS`, `RATE_LIMIT_WINDOW_MS`: Public API rate limits
+- `HOST`: Bind address (default: `127.0.0.1`). Keep localhost when exposing via Cloudflare Tunnel or a reverse proxy so the origin port is not publicly reachable.
+- `PORT`: HTTP port (default: `3000`)
 
 ## Deployment Steps
 
@@ -53,7 +55,7 @@ pnpm build
 pnpm start
 ```
 
-The server will start on port 3000 by default.
+The server binds to `127.0.0.1:3000` by default (`HOST=127.0.0.1`, `PORT=3000`). Cloudflare Tunnel or a reverse proxy should connect to that localhost origin.
 
 ### 4. Configure Reverse Proxy
 
@@ -194,10 +196,11 @@ For high-traffic scenarios:
 ## Security Considerations
 
 1. **HTTPS Only**: Always use HTTPS in production
-2. **Rate Limiting**: Implement rate limiting at the reverse proxy level
-3. **Database Security**: Use strong passwords and restrict database access
-4. **Regular Updates**: Keep dependencies up to date
-5. **Monitoring**: Set up monitoring and alerting for suspicious activity
+2. **Localhost bind**: Keep `HOST=127.0.0.1` so port 3000 is not reachable on the public interface; expose the app only via Cloudflare Tunnel or a reverse proxy
+3. **Rate Limiting**: Implement rate limiting at the reverse proxy level
+4. **Database Security**: Use strong passwords and restrict database access
+5. **Regular Updates**: Keep dependencies up to date
+6. **Monitoring**: Set up monitoring and alerting for suspicious activity
 
 ## Troubleshooting
 
