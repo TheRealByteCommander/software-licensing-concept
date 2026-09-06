@@ -5,15 +5,16 @@ export const APP_TITLE = import.meta.env.VITE_APP_TITLE || "App";
 export const APP_LOGO =
   import.meta.env.VITE_APP_LOGO || "/byte_commander_logo.png";
 
-// Generate login URL at runtime so redirect URI reflects the current origin.
-export const getLoginUrl = () => {
+export const getLoginUrl = () => "/login";
+
+// Generate BC OAuth portal URL at runtime so redirect URI reflects the current origin.
+export const getOAuthPortalUrl = (): string => {
   const oauthPortalUrl = String(import.meta.env.VITE_OAUTH_PORTAL_URL || "").trim();
   const appId = String(import.meta.env.VITE_APP_ID || "").trim();
   const redirectUri = `${window.location.origin}/api/oauth/callback`;
   const state = btoa(redirectUri);
 
   if (!oauthPortalUrl || !appId) {
-    console.error("[Auth] Missing VITE_OAUTH_PORTAL_URL or VITE_APP_ID");
     return "";
   }
 

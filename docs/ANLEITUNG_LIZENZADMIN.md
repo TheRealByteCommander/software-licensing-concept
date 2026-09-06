@@ -20,16 +20,28 @@ Diese Anleitung beschreibt den **tatsächlichen Stand** des Byte Commander Licen
 
 ### Lokaler Admin-Modus (Entwicklung / Self-Hosting)
 
-Wenn **kein OAuth** konfiguriert ist (`OAUTH_SERVER_URL` / `VITE_APP_ID` fehlen) oder `LOCAL_AUTH_ENABLED=true` gesetzt ist, authentifiziert der Server Anfragen automatisch als lokaler Admin.
+Wenn **kein OAuth** konfiguriert ist (`OAUTH_SERVER_URL` / `VITE_APP_ID` fehlen) oder `LOCAL_AUTH_ENABLED=true` gesetzt ist, ist das Admin-Portal **nicht** automatisch offen. Ohne gültiges Session-Cookie gibt es keinen Admin-Zugriff.
 
-Optional in `.env.local`:
+1. Einmaliges Setup unter `/login`: Passwort setzen und TOTP (Google Authenticator) per QR-Code einrichten.
+2. Danach bei jedem Login: E-Mail/Benutzername + Passwort + TOTP-Code.
+3. Abmelden löscht das Session-Cookie.
+
+Empfohlen in `.env` / `.env.local`:
 
 ```env
 LOCAL_AUTH_ENABLED=true
 LOCAL_AUTH_OPEN_ID=local-admin
 LOCAL_AUTH_NAME=Local Admin
 LOCAL_AUTH_EMAIL=admin@localhost
+LOCAL_AUTH_SETUP_TOKEN=<langes-zufaelliges-secret>
+JWT_SECRET=<langes-zufaelliges-secret>
 ```
+
+`LOCAL_AUTH_SETUP_TOKEN` schützt den Erst-Setup. Ist die Variable gesetzt, muss der Token im Setup-Formular eingegeben werden. Ist sie leer, ist Setup nur erlaubt, solange noch kein Passwort-Hash existiert.
+
+Produkt-2FA (Lizenzaktivierung) ist davon unabhängig.
+
+Details: [DEPLOYMENT.md](../DEPLOYMENT.md#self-hosted-admin-login-password--totp)
 
 ---
 
@@ -206,7 +218,10 @@ Products → **Trash-Icon** → Bestätigen.
 |---|---|
 | `DATABASE_URL` | MySQL/TiDB-Verbindung |
 | `JWT_SECRET` | Signatur für Session- und Lizenz-Tokens |
-| `VITE_APP_ID`, `OAUTH_SERVER_URL`, `VITE_OAUTH_PORTAL_URL` | OAuth-Login |
+| `VITE_APP_ID`, `OAUTH_SERVER_URL`, `VITE_OAUTH_PORTAL_URL` | OAuth-Login (wenn Local Auth aus ist) |
+| `LOCAL_AUTH_ENABLED` | Self-Hosted Login mit Passwort + TOTP |
+| `LOCAL_AUTH_OPEN_ID`, `LOCAL_AUTH_NAME`, `LOCAL_AUTH_EMAIL` | Lokale Admin-Identität (Login-Kennung) |
+| `LOCAL_AUTH_SETUP_TOKEN` | Einmal-Token fürs Erst-Setup (empfohlen) |
 | `OWNER_OPEN_ID` | Owner erhält automatisch Admin-Rolle |
 | `RATE_LIMIT_MAX_REQUESTS` | Rate Limit öffentlicher API (Standard: 120/Min.) |
 | `STRIPE_SECRET_KEY` | Stripe Secret Key (sk_live_… / sk_test_…) |
@@ -378,7 +393,7 @@ Unter **Activations** können Einträge nach Produkt, Status (Active/Deactivated
 - [ ] `JWT_SECRET` gesetzt (min. 32 Zeichen, zufällig)
 - [ ] `DATABASE_URL` erreichbar, `pnpm db:push` ausgeführt
 - [ ] HTTPS aktiv (Reverse Proxy)
-- [ ] OAuth konfiguriert oder lokaler Admin-Modus bewusst gewählt
+- [ ] OAuth konfiguriert **oder** Local Auth mit Passwort + TOTP eingerichtet (`LOCAL_AUTH_SETUP_TOKEN` gesetzt)
 - [ ] Erstes Produkt + Testlizenz erstellt
 - [ ] Testaktivierung mit SDK oder Kunden-Software erfolgreich
 - [ ] 2FA getestet (falls produktiv erforderlich)

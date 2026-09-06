@@ -1,5 +1,5 @@
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, products, licenses, activations, customers, twoFASecrets, activationTokens, webhooks, billingPlans, stripeEvents, stripePayments, InsertProduct, InsertLicense, InsertActivation, InsertCustomer, InsertTwoFASecret, InsertActivationToken, InsertWebhook, InsertBillingPlan, InsertStripeEvent, InsertStripePayment } from "../drizzle/schema";
+import { InsertUser, users, products, licenses, activations, customers, twoFASecrets, activationTokens, webhooks, billingPlans, stripeEvents, stripePayments, localAdminCredentials, InsertProduct, InsertLicense, InsertActivation, InsertCustomer, InsertTwoFASecret, InsertActivationToken, InsertWebhook, InsertBillingPlan, InsertStripeEvent, InsertStripePayment, InsertLocalAdminCredential } from "../drizzle/schema";
 import { and, desc, isNull, eq } from "drizzle-orm";
 import { ENV } from './_core/env';
 
@@ -75,6 +75,33 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     console.error("[Database] Failed to upsert user:", error);
     throw error;
   }
+}
+
+export async function getLocalAdminCredentials(openId: string) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get local admin credentials: database not available");
+    return undefined;
+  }
+
+  const result = await db
+    .select()
+    .from(localAdminCredentials)
+    .where(eq(localAdminCredentials.openId, openId))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function saveLocalAdminCredentials(record: InsertLocalAdminCredential) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.insert(localAdminCredentials).values({
+    openId: record.openId,
+    passwordHash: record.passwordHash,
+    totpSecretEncrypted: record.totpSecretEncrypted,
+  });
 }
 
 export async function getUserByOpenId(openId: string) {

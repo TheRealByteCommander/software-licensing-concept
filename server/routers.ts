@@ -1,5 +1,10 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
+import {
+  consumeLocalAuthAttempt,
+  issueLocalAdminSession,
+  localAuthService,
+} from "./_core/localAuth";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
@@ -24,6 +29,65 @@ export const appRouter = router({
         success: true,
       } as const;
     }),
+    localStatus: publicProcedure.query(async () => {
+      return localAuthService.getStatus();
+    }),
+    localLogin: publicProcedure
+      .input(
+        z.object({
+          identifier: z.string().min(1).max(320),
+          password: z.string().min(1).max(1024),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        consumeLocalAuthAttempt(ctx.req);
+        const { pendingToken } = await localAuthService.startLogin(input.identifier, input.password);
+        return { status: "totp_required" as const, pendingToken };
+      }),
+    localVerifyTotp: publicProcedure
+      .input(
+        z.object({
+          pendingToken: z.string().min(1),
+          totpCode: z.string().min(6).max(8),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        consumeLocalAuthAttempt(ctx.req);
+        const identity = await localAuthService.completeLogin(input.pendingToken, input.totpCode);
+        await issueLocalAdminSession(ctx.req, ctx.res, identity);
+        return { status: "authenticated" as const };
+      }),
+    localSetupStart: publicProcedure
+      .input(
+        z.object({
+          password: z.string().min(1).max(1024),
+          confirmPassword: z.string().min(1).max(1024),
+          setupToken: z.string().max(256).optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        consumeLocalAuthAttempt(ctx.req);
+        const result = await localAuthService.startSetup(input);
+        return {
+          status: "enroll_totp" as const,
+          enrollmentToken: result.enrollmentToken,
+          qrCode: result.qrCode,
+          secret: result.secret,
+        };
+      }),
+    localSetupConfirm: publicProcedure
+      .input(
+        z.object({
+          enrollmentToken: z.string().min(1),
+          totpCode: z.string().min(6).max(8),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        consumeLocalAuthAttempt(ctx.req);
+        const identity = await localAuthService.completeSetup(input.enrollmentToken, input.totpCode);
+        await issueLocalAdminSession(ctx.req, ctx.res, identity);
+        return { status: "authenticated" as const };
+      }),
   }),
 
   // Products Management

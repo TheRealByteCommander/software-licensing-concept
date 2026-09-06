@@ -29,6 +29,13 @@
       "when": 1762440000000,
       "tag": "0003_webhooks",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1762441000000,
+      "tag": "0006_local_admin_auth",
+      "breakpoints": true
     }
   ]
 }

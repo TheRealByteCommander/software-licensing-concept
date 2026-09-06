@@ -22,9 +22,11 @@ The following environment variables are automatically configured by the BC platf
 - `OWNER_OPEN_ID`, `OWNER_NAME`: Owner's info
 - `VITE_APP_TITLE`: Application title (default: "Byte Commander License Server")
 - `VITE_APP_LOGO`: Logo image URL (Byte Commander logo)
-- `LOCAL_AUTH_ENABLED`: Set to `true` for explicit local admin mode (optional)
-- `LOCAL_AUTH_OPEN_ID`, `LOCAL_AUTH_NAME`, `LOCAL_AUTH_EMAIL`: Local admin identity
-- `RATE_LIMIT_MAX_REQUESTS`, `RATE_LIMIT_WINDOW_MS`: Public API rate limits
+- `LOCAL_AUTH_ENABLED`: Set to `true` for self-hosted password + TOTP admin login
+- `LOCAL_AUTH_OPEN_ID`, `LOCAL_AUTH_NAME`, `LOCAL_AUTH_EMAIL`: Local admin identity (login identifier)
+- `LOCAL_AUTH_SETUP_TOKEN`: Recommended one-time bootstrap secret for first-time password + TOTP enrollment
+- `LOCAL_AUTH_LOGIN_MAX_ATTEMPTS`, `LOCAL_AUTH_LOGIN_WINDOW_MS`: Login/setup rate limit (default 8 attempts / 15 minutes)
+- `RATE_LIMIT_MAX_REQUESTS`, `RATE_LIMIT_WINDOW_MS`: Public license API rate limits
 
 ## Deployment Steps
 
@@ -199,6 +201,56 @@ For high-traffic scenarios:
 4. **Regular Updates**: Keep dependencies up to date
 5. **Monitoring**: Set up monitoring and alerting for suspicious activity
 
+## Self-hosted admin login (password + TOTP)
+
+When `LOCAL_AUTH_ENABLED=true`, **or** BC OAuth is not configured (`OAUTH_SERVER_URL` / `VITE_APP_ID` missing), the admin portal no longer grants access automatically. Unauthenticated visitors see `/login`.
+
+Public license SDK endpoints (`api.activate`, `api.validate`, `api.deactivate`, product-activation 2FA) stay reachable **without** an admin session.
+
+### 1. Environment
+
+```env
+LOCAL_AUTH_ENABLED=true
+LOCAL_AUTH_OPEN_ID=local-admin
+LOCAL_AUTH_NAME=Local Admin
+LOCAL_AUTH_EMAIL=admin@localhost
+LOCAL_AUTH_SETUP_TOKEN=generate-a-long-random-string
+JWT_SECRET=generate-a-long-random-string-min-32-chars
+```
+
+`JWT_SECRET` signs the session cookie **and** encrypts the admin TOTP secret at rest. Use a unique value per VPS.
+
+`LOCAL_AUTH_SETUP_TOKEN` is strongly recommended. If it is set, the first-time setup form requires it. If it is omitted, setup is allowed only while no password hash exists yet (anyone who can reach `/login` can enroll the first admin).
+
+### 2. Database
+
+Apply schema updates (adds `localAdminCredentials`):
+
+```bash
+pnpm db:push
+```
+
+### 3. First-time bootstrap
+
+1. Open `https://license.example.com/login`
+2. Enter the setup token (if configured), choose a password (min. 12 characters), confirm it
+3. Scan the QR code with Google Authenticator or another TOTP app
+4. Enter a 6-digit code to finish setup — this also signs you in
+5. Remove or rotate `LOCAL_AUTH_SETUP_TOKEN` after enrollment if you want to prevent a second bootstrap on a wiped credentials row
+
+After setup, login is always: identifier (email / openId / name) → password → TOTP. Password alone never creates a session.
+
+### 4. Day-to-day login / logout
+
+- Sign in at `/login`
+- Sign out from the user menu (clears the `app_session_id` session cookie)
+
+### 5. Keep BC OAuth instead
+
+Leave `LOCAL_AUTH_ENABLED` unset/`false` and configure `OAUTH_SERVER_URL`, `VITE_APP_ID`, and `VITE_OAUTH_PORTAL_URL`. `/login` then redirects to the OAuth portal.
+
+Product-level 2FA for license activation is unchanged and independent of admin login TOTP.
+
 ## Troubleshooting
 
 ### Database Connection Issues
@@ -207,7 +259,7 @@ Check the `DATABASE_URL` environment variable and ensure the database is accessi
 
 ### Authentication Issues
 
-Verify that OAuth environment variables are correctly set.
+For BC OAuth, verify `OAUTH_SERVER_URL`, `VITE_APP_ID`, and `VITE_OAUTH_PORTAL_URL`. For self-hosted login, confirm `JWT_SECRET`, that `pnpm db:push` created `localAdminCredentials`, and that password + TOTP were enrolled at `/login`.
 
 ### Performance Issues
 
