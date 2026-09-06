@@ -2,10 +2,39 @@ import type { License } from "../drizzle/schema";
 import { TRPCError } from "@trpc/server";
 import * as db from "./db";
 import { isLicenseExpired, getRenewalUpdateIfEligible } from "./licenseRenewal";
-import { parseLicenseMetadata, type LicenseMetadata } from "./licensePolicy";
+import {
+  isActiveActivation,
+  parseLicenseMetadata,
+  type LicenseMetadata,
+} from "./licensePolicy";
 import { dispatchWebhookEvent } from "./webhooks";
 
-export async function prepareLicenseForUse(licenseKey: string): Promise<{
+/** Accepts either `productId` or `expectedProductId` from activate/validate clients. */
+export function resolveExpectedProductId(input: {
+  productId?: number;
+  expectedProductId?: number;
+}): number | undefined {
+  const expected = input.expectedProductId ?? input.productId;
+  return typeof expected === "number" && Number.isFinite(expected) ? expected : undefined;
+}
+
+export function assertLicenseMatchesProduct(
+  licenseProductId: number,
+  expectedProductId?: number
+): void {
+  if (expectedProductId == null) return;
+  if (licenseProductId !== expectedProductId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `License belongs to product ${licenseProductId}, expected ${expectedProductId}`,
+    });
+  }
+}
+
+export async function prepareLicenseForUse(
+  licenseKey: string,
+  options?: { expectedProductId?: number }
+): Promise<{
   license: License;
   metadata: LicenseMetadata;
 }> {
@@ -13,6 +42,8 @@ export async function prepareLicenseForUse(licenseKey: string): Promise<{
   if (!current) {
     throw new TRPCError({ code: "NOT_FOUND", message: "License not found" });
   }
+
+  assertLicenseMatchesProduct(current.productId, options?.expectedProductId);
 
   if (current.status === "revoked") {
     throw new TRPCError({ code: "FORBIDDEN", message: `License is ${current.status}` });
@@ -50,6 +81,29 @@ export async function prepareLicenseForUse(licenseKey: string): Promise<{
   }
 
   return { license, metadata };
+}
+
+/**
+ * Soft-deactivates the device seat and drops pending 2FA tokens so
+ * maxActivations can be reused.
+ */
+export async function releaseLicenseSeat(
+  licenseKey: string,
+  deviceId: string
+): Promise<{ alreadyReleased: boolean }> {
+  const activation = await db.getLatestActivationByDeviceAndLicense(licenseKey, deviceId);
+  await db.deleteActivationTokensForDevice(licenseKey, deviceId);
+
+  if (!activation) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Activation not found" });
+  }
+
+  if (!isActiveActivation(activation)) {
+    return { alreadyReleased: true };
+  }
+
+  await db.deactivateActivation(activation.id);
+  return { alreadyReleased: false };
 }
 
 export function licensesToCsv(

@@ -149,8 +149,8 @@ export default function LicenseFormFields({
           placeholder="basic, inspection, Trends, Export"
         />
         <p className="mt-1 text-xs text-muted-foreground">
-          Extra flags for this license. Product default features are always merged in the API
-          response (empty here still returns the product defaults).
+          Non-empty list is authoritative (no union with product defaults). Leave empty to use
+          the product defaults, or basic.
         </p>
       </div>
 

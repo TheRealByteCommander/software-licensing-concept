@@ -4,7 +4,8 @@ import * as db from "./db";
 import { generateTwoFASecret, generateQRCodeDataUrl, verifyTOTP, generateBackupCodes } from "./twoFAUtils";
 import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
-import { prepareLicenseForUse } from "./licenseFlow";
+import { prepareLicenseForUse, resolveExpectedProductId } from "./licenseFlow";
+import { filterActiveActivations, isSeatLimitReached } from "./licensePolicy";
 import { dispatchWebhookEvent } from "./webhooks";
 import { buildLicenseAccessGrant, toActivationPayload } from "./licenseGrant";
 
@@ -101,14 +102,18 @@ export const twoFARouter = router({
   /**
    * Initiate license activation (returns activation token)
    */
-  initiateActivation: publicProcedure
+    initiateActivation: publicProcedure
     .input(z.object({
       licenseKey: z.string(),
       deviceId: z.string(),
       deviceInfo: z.string().optional(),
+      productId: z.number().int().positive().optional(),
+      expectedProductId: z.number().int().positive().optional(),
     }))
     .mutation(async ({ input }) => {
-      const { license } = await prepareLicenseForUse(input.licenseKey);
+      const { license } = await prepareLicenseForUse(input.licenseKey, {
+        expectedProductId: resolveExpectedProductId(input),
+      });
 
       const product = await db.getProductById(license.productId);
       if (!product) {
@@ -134,9 +139,8 @@ export const twoFARouter = router({
         });
       }
 
-      // Check activation limit
-      const activeActivations = await db.getActivationsByLicense(input.licenseKey);
-      if (license.maxActivations && activeActivations.length >= license.maxActivations) {
+      const occupiedSeats = filterActiveActivations(await db.getActivationsByLicense(input.licenseKey));
+      if (isSeatLimitReached(occupiedSeats.length, license.maxActivations)) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: `Maximum activations (${license.maxActivations}) reached`,
@@ -216,8 +220,8 @@ export const twoFARouter = router({
       // Delete the activation token
       await db.deleteActivationToken(input.activationToken);
 
-      const activeActivations = await db.getActivationsByLicense(token.licenseKey);
-      if (license.maxActivations && activeActivations.length >= license.maxActivations) {
+      const occupiedSeats = filterActiveActivations(await db.getActivationsByLicense(token.licenseKey));
+      if (isSeatLimitReached(occupiedSeats.length, license.maxActivations)) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: `Maximum activations (${license.maxActivations}) reached`,

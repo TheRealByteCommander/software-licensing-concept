@@ -230,6 +230,12 @@ components:
         deviceInfo:
           type: string
           description: Optional JSON string describing client device
+        productId:
+          type: integer
+          description: Optional intended product. Rejected when the license belongs to a different product.
+        expectedProductId:
+          type: integer
+          description: Alias for productId. Takes precedence when both are sent.
 
     ActivateData:
       type: object
@@ -247,7 +253,7 @@ components:
           type: array
           items:
             type: string
-          description: Resolved feature flags (product defaults merged with license metadata)
+          description: Resolved feature flags (license metadata if non-empty, else product defaults or basic)
         productId:
           type: integer
         offlineGraceHours:
@@ -277,6 +283,12 @@ components:
       properties:
         token:
           type: string
+        productId:
+          type: integer
+          description: Optional intended product. Mismatch returns valid=false.
+        expectedProductId:
+          type: integer
+          description: Alias for productId. Takes precedence when both are sent.
 
     ValidLicense:
       type: object
@@ -380,6 +392,10 @@ components:
           type: string
         deviceInfo:
           type: string
+        productId:
+          type: integer
+        expectedProductId:
+          type: integer
 
     Initiate2FAData:
       type: object

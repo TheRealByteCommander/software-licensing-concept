@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { licensesToCsv } from "./licenseFlow";
+import { TRPCError } from "@trpc/server";
+import {
+  assertLicenseMatchesProduct,
+  licensesToCsv,
+  resolveExpectedProductId,
+} from "./licenseFlow";
 import type { License } from "../drizzle/schema";
 
 describe("licensesToCsv", () => {
@@ -28,5 +33,34 @@ describe("licensesToCsv", () => {
     expect(csv).toContain("AAAA-BBBB-CCCC-DDDD");
     expect(csv).toContain("My Product");
     expect(csv).toContain("Jane Doe <jane@example.com>");
+  });
+});
+
+describe("product binding", () => {
+  it("prefers expectedProductId over productId", () => {
+    expect(resolveExpectedProductId({ productId: 1, expectedProductId: 2 })).toBe(2);
+    expect(resolveExpectedProductId({ productId: 2 })).toBe(2);
+    expect(resolveExpectedProductId({})).toBeUndefined();
+  });
+
+  it("allows activation when no expected product is sent", () => {
+    expect(() => assertLicenseMatchesProduct(1)).not.toThrow();
+  });
+
+  it("allows activation when the license matches the expected product", () => {
+    expect(() => assertLicenseMatchesProduct(2, 2)).not.toThrow();
+  });
+
+  it("rejects a license bound to a different product", () => {
+    try {
+      assertLicenseMatchesProduct(1, 2);
+      throw new Error("expected FORBIDDEN");
+    } catch (error) {
+      expect(error).toBeInstanceOf(TRPCError);
+      expect(error).toMatchObject({
+        code: "FORBIDDEN",
+        message: "License belongs to product 1, expected 2",
+      });
+    }
   });
 });

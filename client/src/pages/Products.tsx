@@ -251,7 +251,7 @@ export default function Products() {
                 placeholder="basic, inspection, Trends, Export"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Returned on activate/validate and merged with each license&apos;s feature list.
+                Used when a license has no features of its own. A non-empty license feature list replaces these defaults.
               </p>
             </div>
           </div>
@@ -307,7 +307,7 @@ export default function Products() {
                 placeholder="basic, inspection, Trends, Export"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Example for AnomalyMatrix: basic, inspection, Trends, Export
+                Fallback when a license has no features. Non-empty license metadata replaces this list.
               </p>
             </div>
           </div>

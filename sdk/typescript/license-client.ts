@@ -9,10 +9,14 @@ export type ActivateRequest = {
   licenseKey: string;
   deviceId: string;
   deviceInfo?: string;
+  productId?: number;
+  expectedProductId?: number;
 };
 
 export type ValidateRequest = {
   token: string;
+  productId?: number;
+  expectedProductId?: number;
 };
 
 export type DeactivateRequest = {
@@ -24,6 +28,8 @@ export type Initiate2FARequest = {
   licenseKey: string;
   deviceId: string;
   deviceInfo?: string;
+  productId?: number;
+  expectedProductId?: number;
 };
 
 export type CheckoutResult = {

@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, products, licenses, activations, customers, twoFASecrets, activationTokens, webhooks, billingPlans, stripeEvents, stripePayments, InsertProduct, InsertLicense, InsertActivation, InsertCustomer, InsertTwoFASecret, InsertActivationToken, InsertWebhook, InsertBillingPlan, InsertStripeEvent, InsertStripePayment } from "../drizzle/schema";
 import { and, desc, isNull, eq } from "drizzle-orm";
+import { filterActiveActivations } from "./licensePolicy";
 import { ENV } from './_core/env';
 import { mysqlInsertId } from "./mysqlInsert";
 
@@ -243,9 +244,10 @@ export async function getAllActivations(filters?: {
 export async function getActivationsByLicense(licenseKey: string) {
   const db = await getDb();
   if (!db) return [];
-  return await db.select().from(activations)
-    .where(and(eq(activations.licenseKey, licenseKey), isNull(activations.deactivatedAt)))
+  const rows = await db.select().from(activations)
+    .where(eq(activations.licenseKey, licenseKey))
     .orderBy(desc(activations.activatedAt));
+  return filterActiveActivations(rows);
 }
 
 export async function getActivationByDeviceAndLicense(licenseKey: string, deviceId: string) {
@@ -257,6 +259,16 @@ export async function getActivationByDeviceAndLicense(licenseKey: string, device
       eq(activations.deviceId, deviceId),
       isNull(activations.deactivatedAt)
     ))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getLatestActivationByDeviceAndLicense(licenseKey: string, deviceId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(activations)
+    .where(and(eq(activations.licenseKey, licenseKey), eq(activations.deviceId, deviceId)))
+    .orderBy(desc(activations.activatedAt))
     .limit(1);
   return result.length > 0 ? result[0] : undefined;
 }
@@ -282,6 +294,14 @@ export async function deactivateActivations(ids: number[]) {
   for (const id of ids) {
     await db.update(activations).set({ deactivatedAt: now }).where(eq(activations.id, id));
   }
+}
+
+export async function deleteActivationTokensForDevice(licenseKey: string, deviceId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(activationTokens)
+    .where(and(eq(activationTokens.licenseKey, licenseKey), eq(activationTokens.deviceId, deviceId)));
 }
 
 // ========== Customers ==========

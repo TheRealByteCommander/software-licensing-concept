@@ -84,14 +84,16 @@ Integratoren und die öffentliche API (`api.activate` / `api.validate`) verwende
 **Default features (z. B. AnomalyMatrix, Product ID 2):**
 
 1. Products → Edit → **Default features** z. B. `basic, inspection, Trends, Export`
-2. Diese Flags werden bei **activate** / **validate** mit den License-Features zusammengeführt (nicht nur `basic`)
-3. Zusätzliche Flags pro Lizenz unter Licenses → Features
+2. Fehlt `metadata.features` oder ist die Liste leer, gelten die Produkt-Defaults (sonst `basic`)
+3. Eine **nicht-leere** License-`features`-Liste ist allein maßgeblich (kein Union). Ein BASIC-Key mit `["basic"]` bleibt BASIC.
 
-Das JWT und die API-Antwort enthalten die vollständige Liste plus Offline-Fenster:
+**Produktbindung:** `api.activate` / `api.validate` (und `twoFA.initiateActivation`) akzeptieren optional `productId` oder `expectedProductId`. Gehört die Lizenz zu einem anderen Produkt, antwortet der Server mit `FORBIDDEN` (`License belongs to product 1, expected 2`).
+
+Das JWT und die API-Antwort enthalten die aufgelösten Flags plus Offline-Fenster:
 
 | Claim / Feld | Bedeutung |
 |---|---|
-| `features` | Freigeschaltete Flags (Produkt-Defaults ∪ Lizenz-Metadata) |
+| `features` | License-Metadata, falls gesetzt; sonst Produkt-Defaults bzw. `basic` |
 | `offlineGraceHours` | Standard **72** |
 | `offlineUntil` / JWT `exp` | Ende der Offline-Gültigkeit (max. 72h, nie länger als `expiresAt`) |
 | `licenseExpiresAt` | Tatsächliches Lizenzende (unix, oder `null` bei perpetual) |
@@ -181,7 +183,7 @@ Für Feature-Lizenzen Metadata beim Erstellen setzen:
 
 | Metadata-Feld | Wirkung |
 |---|---|
-| `features` | Liste freigeschalteter Features (im Validierungs-Token enthalten) |
+| `features` | Maßgebliche Feature-Liste (ersetzt Produkt-Defaults, wenn nicht leer) |
 | `staleActivationDays` | Inaktive Geräte-Slots werden nach X Tagen ohne Validierung automatisch freigegeben |
 
 ---
@@ -233,7 +235,7 @@ Gesperrte Konten erhalten keine Admin-Session mehr. Die öffentliche Lizenz-API 
 
 ### Geräte-Slot freimachen
 
-Option A: Kunde deaktiviert selbst (Software-Funktion oder Support-Anleitung).
+Option A: Kunde deaktiviert selbst (`api.deactivate`). Die Aktivierung wird soft-deaktiviert (`deactivatedAt`), offene 2FA-Tokens zum Gerät werden gelöscht. Der Slot zählt danach **nicht** mehr gegen `maxActivations` und kann erneut aktiviert werden.
 
 Option B: Lizenz widerrufen und neue Lizenz ausstellen.
 

@@ -116,6 +116,7 @@ class LicenseClient:
                     'licenseKey': key,
                     'deviceId': device_id,
                     'deviceInfo': device_info,
+                    'productId': self.product_id,
                 })
             )
             response.raise_for_status()
@@ -175,7 +176,10 @@ class LicenseClient:
         try:
             response = requests.post(
                 f"{self.server_url}/api/trpc/api.validate",
-                json=wrap_input({'token': self._token})
+                json=wrap_input({
+                    'token': self._token,
+                    'productId': self.product_id,
+                })
             )
             response.raise_for_status()
 
