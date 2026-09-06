@@ -26,6 +26,22 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
 /**
+ * Local admin credentials for self-hosted password + TOTP login.
+ * Separate from product-activation 2FA (twoFASecrets).
+ */
+export const localAdminCredentials = mysqlTable("localAdminCredentials", {
+  id: int("id").autoincrement().primaryKey(),
+  openId: varchar("openId", { length: 64 }).notNull().unique(),
+  passwordHash: varchar("passwordHash", { length: 512 }).notNull(),
+  totpSecretEncrypted: varchar("totpSecretEncrypted", { length: 512 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type LocalAdminCredential = typeof localAdminCredentials.$inferSelect;
+export type InsertLocalAdminCredential = typeof localAdminCredentials.$inferInsert;
+
+/**
  * Products table - Represents software products that can be licensed
  */
 export const products = mysqlTable("products", {

@@ -8,7 +8,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { ENV } from "./env";
-import { createRateLimiter, isPublicApiPath } from "./rateLimit";
+import { createRateLimiter, isLocalAuthPath, isPublicApiPath } from "./rateLimit";
 import { registerStripeWebhookRoute } from "../stripeWebhookRoute";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -48,8 +48,15 @@ async function startServer() {
     Math.max(1000, ENV.rateLimitWindowMs || 60000),
     Math.max(1, ENV.rateLimitMaxRequests || 120)
   );
+  const localAuthLimiter = createRateLimiter(
+    Math.max(60_000, ENV.localAuthLoginWindowMs || 900_000),
+    Math.max(1, ENV.localAuthLoginMaxAttempts || 8)
+  );
 
   app.use("/api/trpc", (req, res, next) => {
+    if (isLocalAuthPath(req.path)) {
+      return localAuthLimiter(req, res, next);
+    }
     if (isPublicApiPath(req.path)) {
       return rateLimiter(req, res, next);
     }

@@ -6,7 +6,7 @@ import type { Request } from "express";
 import { SignJWT, jwtVerify } from "jose";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
-import { ENV } from "./env";
+import { ENV, isLocalAuthMode } from "./env";
 import type {
   ExchangeTokenRequest,
   ExchangeTokenResponse,
@@ -171,7 +171,7 @@ class SDKServer {
     return this.signSession(
       {
         openId,
-        appId: ENV.appId,
+        appId: ENV.appId || "local-auth",
         name: options.name || "",
       },
       options
@@ -201,7 +201,6 @@ class SDKServer {
     cookieValue: string | undefined | null
   ): Promise<{ openId: string; appId: string; name: string } | null> {
     if (!cookieValue) {
-      console.warn("[Auth] Missing session cookie");
       return null;
     }
 
@@ -257,10 +256,22 @@ class SDKServer {
   }
 
   async authenticateRequest(req: Request): Promise<User> {
-    // Local auth fallback for self-hosted setups without OAuth configured
-    const oauthConfigured = Boolean(ENV.oAuthServerUrl && ENV.appId);
-    if (ENV.localAuthEnabled || !oauthConfigured) {
+    const cookies = this.parseCookies(req.headers.cookie);
+    const sessionCookie = cookies.get(COOKIE_NAME);
+    const session = await this.verifySession(sessionCookie);
+
+    if (!session) {
+      throw ForbiddenError("Invalid session cookie");
+    }
+
+    // Self-hosted local admin: require a real session cookie. Never auto-admin.
+    if (isLocalAuthMode()) {
       const openId = ENV.localAuthOpenId || "local-admin";
+      if (session.openId !== openId) {
+        throw ForbiddenError("Invalid session cookie");
+      }
+
+      const signedInAt = new Date();
       try {
         await db.upsertUser({
           openId,
@@ -268,7 +279,7 @@ class SDKServer {
           email: ENV.localAuthEmail || "admin@localhost",
           loginMethod: "local",
           role: "admin",
-          lastSignedIn: new Date(),
+          lastSignedIn: signedInAt,
         });
         const localUser = await db.getUserByOpenId(openId);
         if (localUser) return localUser;
@@ -276,7 +287,6 @@ class SDKServer {
         console.warn("[Auth] Local auth DB sync failed, using in-memory local user", error);
       }
 
-      // Hard fallback without DB dependency
       return {
         id: 0,
         openId,
@@ -286,18 +296,11 @@ class SDKServer {
         role: "admin",
         createdAt: new Date(),
         updatedAt: new Date(),
-        lastSignedIn: new Date(),
+        lastSignedIn: signedInAt,
       } as User;
     }
 
-    // Regular authentication flow
-    const cookies = this.parseCookies(req.headers.cookie);
-    const sessionCookie = cookies.get(COOKIE_NAME);
-    const session = await this.verifySession(sessionCookie);
-
-    if (!session) {
-      throw ForbiddenError("Invalid session cookie");
-    }
+    // Regular OAuth authentication flow
 
     const sessionUserId = session.openId;
     const signedInAt = new Date();

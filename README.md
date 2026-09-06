@@ -62,6 +62,7 @@ Das **Byte Commander License Server** ist ein umfassendes Lizenzverwaltungssyste
 
 ### Sicherheit
 - ✅ **2FA mit Google Authenticator:** TOTP-basierte Authentifizierung bei Lizenzaktivierung
+- ✅ **Admin-Login mit Passwort + TOTP:** Self-Hosted Portal ist ohne Session nicht offen
 - ✅ **JWT-Token:** Sichere, signierte Tokens für Offline-Validierung
 - ✅ **Rate Limiting:** Schutz vor Brute-Force-Angriffen
 - ✅ **Token Blacklisting:** Verwaltung ungültiger Tokens
@@ -168,6 +169,11 @@ VITE_OAUTH_PORTAL_URL=<oauth-portal-url>
 
 # Sicherheit
 JWT_SECRET=your-secret-key-min-32-chars
+
+# Self-Hosted Admin-Login (Passwort + TOTP). Ohne OAuth automatisch aktiv.
+LOCAL_AUTH_ENABLED=true
+LOCAL_AUTH_EMAIL=admin@localhost
+LOCAL_AUTH_SETUP_TOKEN=generate-a-long-random-string
 
 # Anwendung
 VITE_APP_TITLE=Byte Commander License Server
@@ -324,6 +330,8 @@ Das System unterstützt mehrere flexible Lizenzmodelle:
 ## 🔐 2FA-Authentifizierung
 
 Das System implementiert eine sichere 2FA-Authentifizierung mit Google Authenticator (TOTP).
+
+Das **Admin-Portal** (Self-Hosting) nutzt ein separates Passwort + TOTP-Login. Die Produkt-2FA für Lizenzaktivierung bleibt unverändert.
 
 ### Wie 2FA funktioniert
 
@@ -719,7 +727,7 @@ Das Admin-Portal bietet eine Verwaltungsoberfläche für das Lizenzsystem.
 <license-server-url>
 ```
 
-Melden Sie sich mit BC OAuth an (oder nutzen Sie den lokalen Admin-Modus ohne OAuth).
+Melden Sie sich mit BC OAuth an **oder** im Self-Hosting unter `/login` mit Passwort + TOTP (siehe [DEPLOYMENT.md](DEPLOYMENT.md#self-hosted-admin-login-password--totp)). Ohne Session-Cookie gibt es keinen Admin-Zugriff.
 
 ### Navigation
 
@@ -882,6 +890,9 @@ sudo systemctl start license-server
 | `VITE_APP_LOGO` | Logo-URL | `/logo.png` |
 | `OWNER_NAME` | Besitzername | `Your Name` |
 | `OWNER_OPEN_ID` | Besitzer OAuth ID | `owner-id-12345` |
+| `LOCAL_AUTH_ENABLED` | Lokales Admin-Login (Passwort + TOTP) | `true` |
+| `LOCAL_AUTH_EMAIL` / `LOCAL_AUTH_OPEN_ID` / `LOCAL_AUTH_NAME` | Login-Kennung des lokalen Admins | `admin@localhost` |
+| `LOCAL_AUTH_SETUP_TOKEN` | Einmal-Token fürs Erst-Setup | langes Zufallssecret |
 | `PORT` | Server-Port | `3000` |
 | `NODE_ENV` | Umgebung | `production` oder `development` |
 
@@ -896,6 +907,7 @@ Das System verwendet folgende Tabellen:
 - **customers:** Kundeninformationen
 - **twoFASettings:** 2FA-Konfiguration pro Produkt
 - **activationTokens:** Temporäre 2FA-Tokens
+- **localAdminCredentials:** Passwort-Hash und verschlüsseltes Admin-TOTP-Secret (Self-Hosting)
 
 ---
 

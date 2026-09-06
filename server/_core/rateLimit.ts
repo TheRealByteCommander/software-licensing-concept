@@ -54,6 +54,48 @@ export function createRateLimiter(windowMs: number, maxRequests: number) {
   };
 }
 
+export function getRequestClientKey(req: Request): string {
+  return getClientKey(req);
+}
+
+export class AttemptLimiter {
+  private readonly buckets = new Map<string, Bucket>();
+
+  constructor(
+    private readonly windowMs: number,
+    private readonly maxAttempts: number
+  ) {}
+
+  consume(req: Request): { ok: true } | { ok: false; retryAfterSeconds: number } {
+    const now = Date.now();
+    this.buckets.forEach((bucket, key) => {
+      if (bucket.resetAt <= now) this.buckets.delete(key);
+    });
+
+    const key = getClientKey(req);
+    const existing = this.buckets.get(key);
+
+    if (!existing || existing.resetAt <= now) {
+      this.buckets.set(key, { count: 1, resetAt: now + this.windowMs });
+      return { ok: true };
+    }
+
+    if (existing.count >= this.maxAttempts) {
+      return {
+        ok: false,
+        retryAfterSeconds: Math.max(1, Math.ceil((existing.resetAt - now) / 1000)),
+      };
+    }
+
+    existing.count += 1;
+    return { ok: true };
+  }
+
+  reset() {
+    this.buckets.clear();
+  }
+}
+
 export function isPublicApiPath(path: string): boolean {
   return (
     path.startsWith("/api.activate") ||
@@ -64,4 +106,8 @@ export function isPublicApiPath(path: string): boolean {
     path.startsWith("/stripe.createCheckoutSession") ||
     path.startsWith("/stripe.getCheckoutResult")
   );
+}
+
+export function isLocalAuthPath(path: string): boolean {
+  return /auth\.(localLogin|localVerifyTotp|localSetupStart|localSetupConfirm)\b/.test(path);
 }
