@@ -1,5 +1,4 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "crypto";
-import { promisify } from "util";
 import { SignJWT, jwtVerify } from "jose";
 import { TRPCError } from "@trpc/server";
 import type { Request, Response } from "express";
@@ -9,9 +8,20 @@ import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { ENV, isLocalAuthMode, isOAuthConfigured } from "./env";
 import { AttemptLimiter } from "./rateLimit";
-import { sdk } from "./sdk";
 
-const scrypt = promisify(scryptCallback);
+function scryptHash(
+  password: string,
+  salt: Buffer,
+  keylen: number,
+  options: { N: number; r: number; p: number }
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    scryptCallback(password, salt, keylen, options, (error, derivedKey) => {
+      if (error) reject(error);
+      else resolve(derivedKey);
+    });
+  });
+}
 
 const SCRYPT_N = 16384;
 const SCRYPT_R = 8;
@@ -67,11 +77,11 @@ let dummyPasswordHash: string | null = null;
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
-  const derived = (await scrypt(password, salt, SCRYPT_KEYLEN, {
+  const derived = await scryptHash(password, salt, SCRYPT_KEYLEN, {
     N: SCRYPT_N,
     r: SCRYPT_R,
     p: SCRYPT_P,
-  })) as Buffer;
+  });
   return `scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${salt.toString("hex")}$${derived.toString("hex")}`;
 }
 
@@ -86,7 +96,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
     const expected = Buffer.from(parts[5], "hex");
     if (!salt.length || expected.length !== SCRYPT_KEYLEN) return false;
 
-    const derived = (await scrypt(password, salt, expected.length, { N: n, r, p })) as Buffer;
+    const derived = await scryptHash(password, salt, expected.length, { N: n, r, p });
     if (derived.length !== expected.length) return false;
     return timingSafeEqual(derived, expected);
   } catch {
@@ -434,6 +444,7 @@ export async function issueLocalAdminSession(
     lastSignedIn: new Date(),
   });
 
+  const { sdk } = await import("./sdk");
   const sessionToken = await sdk.createSessionToken(identity.openId, {
     name: identity.name || config.name,
     expiresInMs: ONE_YEAR_MS,

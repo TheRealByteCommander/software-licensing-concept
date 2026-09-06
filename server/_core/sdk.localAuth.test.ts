@@ -2,28 +2,30 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Request } from "express";
 import { COOKIE_NAME } from "@shared/const";
 
-const envState = {
-  appId: "",
-  cookieSecret: "test-secret-at-least-32-chars-long!!",
-  oAuthServerUrl: "",
-  localAuthEnabled: true,
-  localAuthOpenId: "local-admin",
-  localAuthName: "Local Admin",
-  localAuthEmail: "admin@localhost",
-  ownerOpenId: "",
-};
-
-vi.mock("./env", () => ({
-  ENV: envState,
-  isOAuthConfigured: () => Boolean(envState.oAuthServerUrl && envState.appId),
-  isLocalAuthMode: () => envState.localAuthEnabled || !(envState.oAuthServerUrl && envState.appId),
-}));
+vi.mock("./env", () => {
+  const ENV = {
+    appId: "",
+    cookieSecret: "test-secret-at-least-32-chars-long!!",
+    oAuthServerUrl: "",
+    localAuthEnabled: true,
+    localAuthOpenId: "local-admin",
+    localAuthName: "Local Admin",
+    localAuthEmail: "admin@localhost",
+    ownerOpenId: "",
+  };
+  return {
+    ENV,
+    isOAuthConfigured: () => Boolean(ENV.oAuthServerUrl && ENV.appId),
+    isLocalAuthMode: () => ENV.localAuthEnabled || !(ENV.oAuthServerUrl && ENV.appId),
+  };
+});
 
 vi.mock("../db", () => ({
   upsertUser: vi.fn().mockResolvedValue(undefined),
   getUserByOpenId: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { ENV } from "./env";
 import { sdk } from "./sdk";
 import * as db from "../db";
 
@@ -35,10 +37,10 @@ function requestWithCookie(cookie?: string): Request {
 
 describe("authenticateRequest local admin mode", () => {
   beforeEach(() => {
-    envState.localAuthEnabled = true;
-    envState.oAuthServerUrl = "";
-    envState.appId = "";
-    envState.localAuthOpenId = "local-admin";
+    ENV.localAuthEnabled = true;
+    ENV.oAuthServerUrl = "";
+    ENV.appId = "";
+    ENV.localAuthOpenId = "local-admin";
     vi.clearAllMocks();
     vi.mocked(db.getUserByOpenId).mockResolvedValue(undefined);
   });
@@ -91,9 +93,9 @@ describe("authenticateRequest local admin mode", () => {
 
 describe("authenticateRequest OAuth mode", () => {
   beforeEach(() => {
-    envState.localAuthEnabled = false;
-    envState.oAuthServerUrl = "https://oauth.example.com";
-    envState.appId = "bc-app";
+    ENV.localAuthEnabled = false;
+    ENV.oAuthServerUrl = "https://oauth.example.com";
+    ENV.appId = "bc-app";
     vi.clearAllMocks();
     vi.mocked(db.getUserByOpenId).mockResolvedValue(undefined);
   });
