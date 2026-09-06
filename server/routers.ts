@@ -12,8 +12,13 @@ import { normalizeFeatureList, serializeFeatureList } from "@shared/licenseMetad
 import { twoFARouter } from "./twoFARouter";
 import { webhooksRouter } from "./webhooksRouter";
 import { stripeRouter } from "./stripeRouter";
-import { isActivationStale } from "./licensePolicy";
-import { prepareLicenseForUse, licensesToCsv, resolveExpectedProductId } from "./licenseFlow";
+import { filterActiveActivations, isActivationStale, isSeatLimitReached } from "./licensePolicy";
+import {
+  prepareLicenseForUse,
+  licensesToCsv,
+  releaseLicenseSeat,
+  resolveExpectedProductId,
+} from "./licenseFlow";
 import { dispatchWebhookEvent } from "./webhooks";
 import type { Product } from "../drizzle/schema";
 
@@ -232,20 +237,20 @@ export const appRouter = router({
           });
         }
 
-        let activeActivations = await db.getActivationsByLicense(input.licenseKey);
+        let occupiedSeats = filterActiveActivations(await db.getActivationsByLicense(input.licenseKey));
 
         if (metadata.staleActivationDays && metadata.staleActivationDays > 0) {
-          const staleIds = activeActivations
+          const staleIds = occupiedSeats
             .filter(a => isActivationStale(a.lastValidatedAt, metadata.staleActivationDays!))
             .map(a => a.id);
 
           if (staleIds.length > 0) {
             await db.deactivateActivations(staleIds);
-            activeActivations = activeActivations.filter(a => !staleIds.includes(a.id));
+            occupiedSeats = occupiedSeats.filter(a => !staleIds.includes(a.id));
           }
         }
 
-        if (license.maxActivations && activeActivations.length >= license.maxActivations) {
+        if (isSeatLimitReached(occupiedSeats.length, license.maxActivations)) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: `Maximum activations (${license.maxActivations}) reached`,
@@ -329,21 +334,14 @@ export const appRouter = router({
         deviceId: z.string(),
       }))
       .mutation(async ({ input }) => {
-        const activation = await db.getActivationByDeviceAndLicense(
-          input.licenseKey,
-          input.deviceId
-        );
+        const { alreadyReleased } = await releaseLicenseSeat(input.licenseKey, input.deviceId);
 
-        if (!activation) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Activation not found" });
+        if (!alreadyReleased) {
+          void dispatchWebhookEvent("license.deactivated", {
+            licenseKey: input.licenseKey,
+            deviceId: input.deviceId,
+          });
         }
-
-        await db.deactivateActivation(activation.id);
-
-        void dispatchWebhookEvent("license.deactivated", {
-          licenseKey: input.licenseKey,
-          deviceId: input.deviceId,
-        });
 
         return { success: true, message: "Deactivation successful" };
       }),

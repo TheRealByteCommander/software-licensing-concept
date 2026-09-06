@@ -2,7 +2,11 @@ import type { License } from "../drizzle/schema";
 import { TRPCError } from "@trpc/server";
 import * as db from "./db";
 import { isLicenseExpired, getRenewalUpdateIfEligible } from "./licenseRenewal";
-import { parseLicenseMetadata, type LicenseMetadata } from "./licensePolicy";
+import {
+  isActiveActivation,
+  parseLicenseMetadata,
+  type LicenseMetadata,
+} from "./licensePolicy";
 import { dispatchWebhookEvent } from "./webhooks";
 
 /** Accepts either `productId` or `expectedProductId` from activate/validate clients. */
@@ -77,6 +81,29 @@ export async function prepareLicenseForUse(
   }
 
   return { license, metadata };
+}
+
+/**
+ * Soft-deactivates the device seat and drops pending 2FA tokens so
+ * maxActivations can be reused.
+ */
+export async function releaseLicenseSeat(
+  licenseKey: string,
+  deviceId: string
+): Promise<{ alreadyReleased: boolean }> {
+  const activation = await db.getLatestActivationByDeviceAndLicense(licenseKey, deviceId);
+  await db.deleteActivationTokensForDevice(licenseKey, deviceId);
+
+  if (!activation) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Activation not found" });
+  }
+
+  if (!isActiveActivation(activation)) {
+    return { alreadyReleased: true };
+  }
+
+  await db.deactivateActivation(activation.id);
+  return { alreadyReleased: false };
 }
 
 export function licensesToCsv(

@@ -5,6 +5,7 @@ import { generateTwoFASecret, generateQRCodeDataUrl, verifyTOTP, generateBackupC
 import { TRPCError } from "@trpc/server";
 import crypto from "crypto";
 import { prepareLicenseForUse, resolveExpectedProductId } from "./licenseFlow";
+import { filterActiveActivations, isSeatLimitReached } from "./licensePolicy";
 import { dispatchWebhookEvent } from "./webhooks";
 import { buildLicenseAccessGrant, toActivationPayload } from "./licenseGrant";
 
@@ -138,9 +139,8 @@ export const twoFARouter = router({
         });
       }
 
-      // Check activation limit
-      const activeActivations = await db.getActivationsByLicense(input.licenseKey);
-      if (license.maxActivations && activeActivations.length >= license.maxActivations) {
+      const occupiedSeats = filterActiveActivations(await db.getActivationsByLicense(input.licenseKey));
+      if (isSeatLimitReached(occupiedSeats.length, license.maxActivations)) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: `Maximum activations (${license.maxActivations}) reached`,
@@ -220,8 +220,8 @@ export const twoFARouter = router({
       // Delete the activation token
       await db.deleteActivationToken(input.activationToken);
 
-      const activeActivations = await db.getActivationsByLicense(token.licenseKey);
-      if (license.maxActivations && activeActivations.length >= license.maxActivations) {
+      const occupiedSeats = filterActiveActivations(await db.getActivationsByLicense(token.licenseKey));
+      if (isSeatLimitReached(occupiedSeats.length, license.maxActivations)) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: `Maximum activations (${license.maxActivations}) reached`,

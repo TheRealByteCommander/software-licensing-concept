@@ -235,7 +235,7 @@ Gesperrte Konten erhalten keine Admin-Session mehr. Die öffentliche Lizenz-API 
 
 ### Geräte-Slot freimachen
 
-Option A: Kunde deaktiviert selbst (Software-Funktion oder Support-Anleitung).
+Option A: Kunde deaktiviert selbst (`api.deactivate`). Die Aktivierung wird soft-deaktiviert (`deactivatedAt`), offene 2FA-Tokens zum Gerät werden gelöscht. Der Slot zählt danach **nicht** mehr gegen `maxActivations` und kann erneut aktiviert werden.
 
 Option B: Lizenz widerrufen und neue Lizenz ausstellen.
 
